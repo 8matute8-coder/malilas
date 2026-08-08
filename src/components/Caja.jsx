@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { getProductImage } from '../utils/productImages';
+import CalculadoraCajaModal from './CalculadoraCajaModal';
 
 export default function Caja({ inventoryData, ordersData, salesData }) {
   const { products, processSale } = inventoryData;
   const { addOrder } = ordersData || {};
   const { recordSale } = salesData || {};
+  const [showCalculator, setShowCalculator] = useState(false);
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem('lamalila_caja_cart');
@@ -13,6 +15,18 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
       return [];
     }
   });
+
+  const handleConfirmQuickCalculatorSale = (totalAcumulado, breakdownList) => {
+    if (recordSale) {
+      const itemsFormatted = breakdownList.map((item, idx) => ({
+        product: { nombre: `Item ${idx + 1} ($${formatPrice(item.monto)})` },
+        quantity: 1,
+        precioVenta: item.monto
+      }));
+      recordSale(itemsFormatted, totalAcumulado, 'Venta Rápida', 'Mostrador (Calculadora)');
+    }
+    alert(`¡Venta rápida de $${formatPrice(totalAcumulado)} registrada con éxito!`);
+  };
 
   useEffect(() => {
     try {
@@ -200,7 +214,28 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      <h2 className="text-2xl font-bold text-on-surface">Caja Registradora</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-on-surface">Caja Registradora</h2>
+          <p className="text-xs text-secondary">Ingreso por catálogo o venta rápida manual con calculadora dinámicas</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowCalculator(true)}
+          className="bg-primary hover:bg-surface-tint text-white px-5 py-3 rounded-2xl font-extrabold text-sm shadow-md hover:shadow-lg flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-xl">calculate</span>
+          <span>⚡ Venta Rápida por Montos (Calculadora)</span>
+        </button>
+      </div>
+
+      {/* Calculadora Dinamica Modal */}
+      <CalculadoraCajaModal
+        isOpen={showCalculator}
+        onClose={() => setShowCalculator(false)}
+        onConfirmSale={handleConfirmQuickCalculatorSale}
+      />
 
       {/* Ticket / Current Cart Card */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-surface-container-low flex flex-col gap-4">
