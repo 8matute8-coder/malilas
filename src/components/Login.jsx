@@ -46,7 +46,7 @@ export default function Login({ onLoginSuccess }) {
         {/* Logo */}
         <div className="w-24 h-24 rounded-full border-2 border-primary/20 p-1 flex items-center justify-center shadow-sm">
           <img 
-            src="/logo.jpg" 
+            src="./logo.jpg" 
             alt="La Malila Logo" 
             className="w-full h-full object-cover rounded-full"
           />

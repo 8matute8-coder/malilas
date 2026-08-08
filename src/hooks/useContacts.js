@@ -2,66 +2,6 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const INITIAL_CLIENTS = [
-  {
-    id: 'cli-1',
-    nombre: 'María González',
-    telefono: '3814123456',
-    direccion: '25 de Mayo 450, Piso 3A, S. M. de Tucumán',
-    notas: 'Timbre 3A. Paga con transferencia Mercado Pago.',
-    fechaCreacion: new Date().toISOString()
-  },
-  {
-    id: 'cli-2',
-    nombre: 'Juan Carlos Pérez',
-    telefono: '3815987654',
-    direccion: 'San Martín 820, PB, S. M. de Tucumán',
-    notas: 'Dejar en portería si no atiende.',
-    fechaCreacion: new Date().toISOString()
-  },
-  {
-    id: 'cli-3',
-    nombre: 'Lucía Fernández',
-    telefono: '3816554433',
-    direccion: 'Jujuy 310, S. M. de Tucumán',
-    notas: 'Cliente habitual de verduras orgánicas.',
-    fechaCreacion: new Date().toISOString()
-  }
-];
-
-const INITIAL_SUPPLIERS = [
-  {
-    id: 'sup-1',
-    nombre: 'Huerta San José',
-    contacto: 'Don Carlos',
-    telefono: '3814778899',
-    rubro: 'Hortalizas y Tomates de Quinta',
-    direccion: 'Puesto 12, Mercado de Abasto Tucumán',
-    notas: 'Entregas Lunes y Jueves a primera hora.',
-    fechaCreacion: new Date().toISOString()
-  },
-  {
-    id: 'sup-2',
-    nombre: 'Distribuidora El Valle',
-    contacto: 'Roberto Valenzuela',
-    telefono: '3815332211',
-    rubro: 'Papas, Cebollas y Zapallos por bolsa',
-    direccion: 'Av. Circunvalación km 5',
-    notas: 'Venta por bolsa de 20kg y 50kg.',
-    fechaCreacion: new Date().toISOString()
-  },
-  {
-    id: 'sup-3',
-    nombre: 'Finca La Esmeralda',
-    contacto: 'Esteban Maza',
-    telefono: '3816112233',
-    rubro: 'Frutas de Estación (Mandarinas, Naranjas, Manzanas)',
-    direccion: 'Lules, Tucumán',
-    notas: 'Fruta fresca seleccionada directo de finca.',
-    fechaCreacion: new Date().toISOString()
-  }
-];
-
 export const useContacts = () => {
   const [clients, setClients] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -70,16 +10,18 @@ export const useContacts = () => {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'clients'), (snapshot) => {
       const docs = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-      docs.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      setClients(docs);
+      
+      // Auto-clean sample clients if present
+      const sampleIds = ['cli-1', 'cli-2', 'cli-3'];
+      docs.forEach(async (d) => {
+        if (sampleIds.includes(d.id)) {
+          try { await deleteDoc(doc(db, 'clients', d.id)); } catch (e) {}
+        }
+      });
 
-      // Seed initial clients if empty
-      if (docs.length === 0 && !localStorage.getItem('migrated_clients_to_fb')) {
-        INITIAL_CLIENTS.forEach(async (cli) => {
-          await setDoc(doc(db, 'clients', cli.id), cli);
-        });
-        localStorage.setItem('migrated_clients_to_fb', 'true');
-      }
+      const filtered = docs.filter(d => !sampleIds.includes(d.id));
+      filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      setClients(filtered);
     }, err => console.error("Error clients:", err));
     return () => unsub();
   }, []);
@@ -88,16 +30,18 @@ export const useContacts = () => {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
       const docs = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-      docs.sort((a, b) => a.nombre.localeCompare(b.nombre));
-      setSuppliers(docs);
+      
+      // Auto-clean sample suppliers if present
+      const sampleIds = ['sup-1', 'sup-2', 'sup-3'];
+      docs.forEach(async (d) => {
+        if (sampleIds.includes(d.id)) {
+          try { await deleteDoc(doc(db, 'suppliers', d.id)); } catch (e) {}
+        }
+      });
 
-      // Seed initial suppliers if empty
-      if (docs.length === 0 && !localStorage.getItem('migrated_suppliers_to_fb')) {
-        INITIAL_SUPPLIERS.forEach(async (sup) => {
-          await setDoc(doc(db, 'suppliers', sup.id), sup);
-        });
-        localStorage.setItem('migrated_suppliers_to_fb', 'true');
-      }
+      const filtered = docs.filter(d => !sampleIds.includes(d.id));
+      filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      setSuppliers(filtered);
     }, err => console.error("Error suppliers:", err));
     return () => unsub();
   }, []);

@@ -15,9 +15,28 @@ export default function Inventory({ inventoryData }) {
   });
   const [stockForm, setStockForm] = useState({ quantity: '', totalPrice: '', cost: '' });
   const [mermaForm, setMermaForm] = useState({ quantity: '', motive: '' });
+  const [editingPriceId, setEditingPriceId] = useState(null);
+  const [inlinePriceInput, setInlinePriceInput] = useState('');
 
   const formatPrice = (num) => Math.round(Number(num)).toLocaleString('es-AR');
   const formatQuantity = (num) => Number(num).toLocaleString('es-AR', { maximumFractionDigits: 2 });
+
+  const handleStartEditPrice = (p, e) => {
+    if (e) e.stopPropagation();
+    setEditingPriceId(p.id);
+    setInlinePriceInput(p.precioVenta.toString());
+  };
+
+  const handleSaveInlinePrice = (p) => {
+    const newPrice = Math.round(parseInput(inlinePriceInput));
+    if (!isNaN(newPrice) && newPrice >= 0) {
+      saveProduct({
+        ...p,
+        precioVenta: newPrice
+      });
+    }
+    setEditingPriceId(null);
+  };
 
   const calcGananciaPorcentaje = (precio, costo) => {
     const p = parseFloat(precio) || 0;
@@ -769,14 +788,55 @@ export default function Inventory({ inventoryData }) {
                 <div className="col-span-1 md:col-span-2 flex justify-between md:block text-sm">
                   <span className="md:hidden font-semibold text-secondary">Precio:</span>
                   <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-primary">${formatPrice(p.precioVenta)}</span>
-                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-extrabold text-[11px]" title="Porcentaje de ganancia sobre el costo">
-                        +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
-                      </span>
-                    </div>
+                    {editingPriceId === p.id ? (
+                      <div className="flex items-center gap-1 my-0.5">
+                        <span className="font-bold text-primary text-xs">$</span>
+                        <input
+                          type="number"
+                          autoFocus
+                          className="w-20 bg-emerald-50 border border-primary text-primary font-bold text-xs p-1 rounded-lg outline-none"
+                          value={inlinePriceInput}
+                          onChange={(e) => setInlinePriceInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveInlinePrice(p);
+                            if (e.key === 'Escape') setEditingPriceId(null);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveInlinePrice(p)}
+                          className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shadow-2xs hover:bg-surface-tint"
+                          title="Guardar nuevo precio"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingPriceId(null)}
+                          className="w-6 h-6 rounded-full bg-surface-container-highest text-secondary flex items-center justify-center text-xs font-bold hover:bg-surface-container-high"
+                          title="Cancelar"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={(e) => handleStartEditPrice(p, e)}
+                          className="font-bold text-primary bg-primary-container/20 hover:bg-primary-container/40 border border-primary/20 px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer group shadow-2xs"
+                          title="Haz clic para modificar el precio de venta rápidamente"
+                        >
+                          <span>${formatPrice(p.precioVenta)}</span>
+                          <span className="material-symbols-outlined text-xs text-primary/60 group-hover:text-primary transition-colors">edit</span>
+                        </button>
+                        <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-extrabold text-[11px]" title="Porcentaje de ganancia sobre el costo">
+                          +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
+                        </span>
+                      </div>
+                    )}
                     {p.esOferta && (
-                      <div className="text-[11px] font-extrabold text-amber-600 leading-tight">
+                      <div className="text-[11px] font-extrabold text-amber-600 leading-tight mt-0.5">
                         🔥 ${formatPrice(p.precioOferta)} / {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
                       </div>
                     )}

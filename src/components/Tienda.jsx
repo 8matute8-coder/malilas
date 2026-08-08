@@ -210,7 +210,7 @@ export default function Tienda() {
       {/* Top Header */}
       <header className="bg-surface border-b border-surface-container-highest sticky top-0 z-40 px-4 md:px-8 py-3 flex justify-between items-center max-w-7xl mx-auto w-full shadow-sm">
         <div className="flex items-center gap-3">
-          <img src="/logo.jpg" alt="La Malila Logo" className="h-10 md:h-12 w-auto object-contain rounded-full border border-primary/20 shadow-xs" />
+          <img src="./logo.jpg" alt="La Malila Logo" className="h-10 md:h-12 w-auto object-contain rounded-full border border-primary/20 shadow-xs" />
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">La Malila</h1>
             <p className="text-xs text-secondary hidden sm:block">Tu almacén de confianza</p>
@@ -591,7 +591,7 @@ export default function Tienda() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 justify-center sm:justify-start">
-              <img src="/logo.jpg" alt="Logo La Malila" className="w-8 h-8 rounded-full border border-primary/20" />
+              <img src="./logo.jpg" alt="Logo La Malila" className="w-8 h-8 rounded-full border border-primary/20" />
               <span className="font-bold text-base text-primary">La Malila</span>
             </div>
             <p>Tu verdulería y frutería de confianza en San Miguel de Tucumán. Frutas y verduras frescas seleccionadas todos los días.</p>

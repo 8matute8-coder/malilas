@@ -55,7 +55,7 @@ function App() {
       {/* Stitch TopAppBar Header */}
       <header className="sticky top-0 z-50 bg-white border-b border-surface-container-highest shadow-xs px-4 md:px-8 h-16 md:h-20 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <img src="/logo.jpg" alt="La Malila Logo" className="h-10 md:h-12 w-auto object-contain rounded-full border border-primary/20 shadow-xs" />
+          <img src="./logo.jpg" alt="La Malila Logo" className="h-10 md:h-12 w-auto object-contain rounded-full border border-primary/20 shadow-xs" />
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">La Malila</h1>
             <p className="text-secondary text-xs hidden sm:block">Tu Almacén de Confianza</p>
