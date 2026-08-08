@@ -18,13 +18,13 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
 
   const handleConfirmQuickCalculatorSale = (totalAcumulado, breakdownList) => {
     if (recordSale) {
-      const itemsFormatted = breakdownList.map((item, idx) => ({
-        product: { nombre: `Monto Calculadora #${idx + 1}`, tipoVenta: 'unidad', costoPromedio: 0, precioVenta: item.monto },
+      const itemsFormatted = [{
+        product: { nombre: 'Venta por Calculadora', tipoVenta: 'unidad', costoPromedio: 0, precioVenta: totalAcumulado },
         quantity: 1,
-        precioVenta: item.monto,
+        precioVenta: totalAcumulado,
         isCalculator: true
-      }));
-      recordSale(itemsFormatted, totalAcumulado, 'Venta Rápida', 'Mostrador (Calculadora)');
+      }];
+      recordSale(itemsFormatted, totalAcumulado, 'Venta Rápida', 'Mostrador (Venta por Calculadora)');
     }
     alert(`¡Venta rápida de $${formatPrice(totalAcumulado)} registrada con éxito!`);
   };

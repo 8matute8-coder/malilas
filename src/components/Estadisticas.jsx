@@ -233,6 +233,12 @@ export default function Estadisticas({ salesData, ordersData }) {
               const d = new Date(sale.fecha);
               const isExpanded = expandedSale === sale.id;
 
+              const isCalcSale = 
+                sale.type === 'Venta Rápida' || 
+                (sale.cliente && sale.cliente.includes('Calculadora')) ||
+                (sale.originalOrder && sale.originalOrder.includes('Calculadora')) ||
+                (sale.items && sale.items.some(i => i.isCalculator || (i.product && i.product.nombre && (i.product.nombre.startsWith('Item ') || i.product.nombre.startsWith('Monto ')))));
+
               return (
                 <div key={sale.id} className="py-3">
                   <div 
@@ -242,9 +248,9 @@ export default function Estadisticas({ salesData, ordersData }) {
                     <div>
                       <div className="font-bold text-sm text-on-surface flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary text-base">
-                          {sale.type === 'Delivery' ? 'local_shipping' : 'shopping_bag'}
+                          {sale.type === 'Delivery' ? 'local_shipping' : isCalcSale ? 'calculate' : 'shopping_bag'}
                         </span>
-                        <span>{sale.cliente}</span>
+                        <span>{isCalcSale ? 'Mostrador (Venta por Calculadora)' : sale.cliente}</span>
                       </div>
                       <div className="text-xs text-secondary mt-0.5">
                         {d.toLocaleDateString('es-AR')} • {d.toLocaleTimeString('es-AR', { hour: '2-digit', minute:'2-digit' })}
@@ -254,7 +260,7 @@ export default function Estadisticas({ salesData, ordersData }) {
                     <div className="flex items-center gap-3 text-right">
                       <div>
                         <div className="font-bold text-base text-primary">${formatPrice(sale.total)}</div>
-                        <div className="text-xs text-secondary">{sale.items.length} items</div>
+                        <div className="text-xs text-secondary">{isCalcSale ? 'Venta Calculadora' : `${sale.items ? sale.items.length : 0} items`}</div>
                       </div>
                       <span className="material-symbols-outlined text-secondary">
                         {isExpanded ? 'expand_less' : 'expand_more'}
@@ -265,14 +271,29 @@ export default function Estadisticas({ salesData, ordersData }) {
                   {isExpanded && (
                     <div className="mt-3 bg-surface-container-low p-4 rounded-xl flex flex-col gap-3 text-xs">
                       <div className="font-bold text-on-surface">Detalle del Pedido:</div>
-                      <ul className="flex flex-col gap-1.5">
-                        {sale.items.map((item, i) => (
-                          <li key={i} className="flex justify-between border-b border-surface-container-highest pb-1">
-                            <span>{item.quantity} {item.product.tipoVenta === 'unidad' ? 'un' : 'kg'} - {item.product.nombre}</span>
-                            <span className="font-semibold">${formatPrice(item.quantity * item.product.precioVenta)}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      {isCalcSale ? (
+                        <div className="bg-white p-3 rounded-xl border border-surface-container-highest flex justify-between items-center font-bold text-sm text-on-surface shadow-2xs">
+                          <span className="flex items-center gap-2 text-primary font-bold">
+                            <span className="material-symbols-outlined text-base">calculate</span>
+                            <span>Mostrador (Venta por Calculadora)</span>
+                          </span>
+                          <span className="font-black text-primary text-base">${formatPrice(sale.total)}</span>
+                        </div>
+                      ) : (
+                        <ul className="flex flex-col gap-1.5">
+                          {sale.items.map((item, i) => {
+                            const pName = item.product?.nombre || 'Producto';
+                            const pUnit = item.product?.tipoVenta === 'unidad' ? 'un' : 'kg';
+                            const itemPrice = item.precioVenta || (item.product?.precioVenta ? item.quantity * item.product.precioVenta : 0);
+                            return (
+                              <li key={i} className="flex justify-between border-b border-surface-container-highest pb-1">
+                                <span>{item.quantity} {pUnit} - {pName}</span>
+                                <span className="font-semibold">${formatPrice(itemPrice)}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
 
                       {sale.type === 'Delivery' && sale.originalOrder && restoreOrder && (
                         <button 
