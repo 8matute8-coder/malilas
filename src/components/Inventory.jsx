@@ -72,7 +72,7 @@ export default function Inventory({ inventoryData }) {
   const getStockStep = (tipoVenta) => {
     if (tipoVenta === 'unidad') return 1;
     if (tipoVenta === 'grs') return 100;
-    return 0.5; // kg
+    return 1; // 1 kg por clic
   };
 
   const handleQuickAdjustStock = (p, deltaMultiplier, e) => {
@@ -787,10 +787,10 @@ export default function Inventory({ inventoryData }) {
       <div className="bg-white rounded-2xl shadow-sm border border-surface-container-low overflow-hidden">
         {/* Table Header (Desktop) */}
         <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 bg-surface-container-low border-b border-surface-container-highest font-bold text-xs text-secondary uppercase tracking-wider">
-          <div className="col-span-4">Producto</div>
-          <div className="col-span-2">Costo Prom.</div>
-          <div className="col-span-2">Precio Venta</div>
-          <div className="col-span-2 text-center">Stock & Potencial</div>
+          <div className="col-span-3">Producto</div>
+          <div className="col-span-1 text-center">Costo</div>
+          <div className="col-span-3">Precio Venta</div>
+          <div className="col-span-3">Stock & Potencial</div>
           <div className="col-span-2 text-right">Acciones</div>
         </div>
 
@@ -807,7 +807,7 @@ export default function Inventory({ inventoryData }) {
                 }`}
               >
                 {/* Product Name & Image */}
-                <div className="col-span-1 md:col-span-4 flex items-center gap-3">
+                <div className="col-span-1 md:col-span-3 flex items-center gap-3">
                   <img 
                     src={getProductImage(p)} 
                     alt={p.nombre} 
@@ -827,13 +827,13 @@ export default function Inventory({ inventoryData }) {
                 </div>
 
                 {/* Cost */}
-                <div className="col-span-1 md:col-span-2 flex justify-between md:block text-sm">
+                <div className="col-span-1 md:col-span-1 flex justify-between md:justify-center md:block text-sm">
                   <span className="md:hidden font-semibold text-secondary">Costo:</span>
-                  <span className="text-secondary font-medium">${formatPrice(p.costoPromedio)}</span>
+                  <span className="text-secondary font-medium md:text-center block">${formatPrice(p.costoPromedio)}</span>
                 </div>
 
                 {/* Price & % Ganancia */}
-                <div className="col-span-1 md:col-span-2 flex justify-between md:block text-sm">
+                <div className="col-span-1 md:col-span-3 flex justify-between md:flex-col md:justify-center text-sm gap-1">
                   <span className="md:hidden font-semibold text-secondary">Precio:</span>
                   <div>
                     {editingPriceId === p.id ? (
@@ -868,37 +868,37 @@ export default function Inventory({ inventoryData }) {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {/* Quick -100 Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
-                          className="w-6 h-6 rounded-md bg-surface-container-high hover:bg-amber-100 text-amber-900 border border-surface-container-highest font-bold text-[10px] flex items-center justify-center transition-all active:scale-95 shadow-2xs"
-                          title="Restar $100 al precio de venta"
-                        >
-                          -100
-                        </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Stepper Pill Container for Price */}
+                        <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
+                            className="px-1.5 py-0.5 rounded-lg text-amber-900 hover:bg-amber-100 font-extrabold text-[11px] transition-all active:scale-90"
+                            title="Restar $100 al precio de venta"
+                          >
+                            -100
+                          </button>
 
-                        {/* Price Click-to-Edit Badge */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleStartEditPrice(p, e)}
-                          className="font-bold text-primary bg-primary-container/20 hover:bg-primary-container/40 border border-primary/20 px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer group shadow-2xs"
-                          title="Haz clic para ingresar un precio de venta exacto"
-                        >
-                          <span>${formatPrice(p.precioVenta)}</span>
-                          <span className="material-symbols-outlined text-xs text-primary/60 group-hover:text-primary transition-colors">edit</span>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleStartEditPrice(p, e)}
+                            className="px-2 py-0.5 font-bold text-primary text-xs hover:bg-white rounded-md transition-colors flex items-center gap-0.5"
+                            title="Haz clic para ingresar un precio de venta exacto"
+                          >
+                            <span>${formatPrice(p.precioVenta)}</span>
+                            <span className="material-symbols-outlined text-[11px] opacity-60">edit</span>
+                          </button>
 
-                        {/* Quick +100 Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
-                          className="w-6 h-6 rounded-md bg-surface-container-high hover:bg-emerald-100 text-emerald-900 border border-surface-container-highest font-bold text-[10px] flex items-center justify-center transition-all active:scale-95 shadow-2xs"
-                          title="Sumar $100 al precio de venta"
-                        >
-                          +100
-                        </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
+                            className="px-1.5 py-0.5 rounded-lg text-emerald-900 hover:bg-emerald-100 font-extrabold text-[11px] transition-all active:scale-90"
+                            title="Sumar $100 al precio de venta"
+                          >
+                            +100
+                          </button>
+                        </div>
 
                         <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-extrabold text-[11px]" title="Porcentaje de ganancia sobre el costo">
                           +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
@@ -906,7 +906,7 @@ export default function Inventory({ inventoryData }) {
                       </div>
                     )}
                     {p.esOferta && (
-                      <div className="text-[11px] font-extrabold text-amber-600 leading-tight mt-0.5">
+                      <div className="text-[11px] font-extrabold text-amber-600 leading-tight mt-1">
                         🔥 ${formatPrice(p.precioOferta)} / {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
                       </div>
                     )}
@@ -914,9 +914,9 @@ export default function Inventory({ inventoryData }) {
                 </div>
 
                 {/* Stock Badge & Potencial de Venta */}
-                <div className="col-span-1 md:col-span-2 flex justify-between items-center md:flex-col md:justify-center md:items-center">
-                  <span className="md:hidden font-semibold text-secondary text-sm">Stock:</span>
-                  <div className="flex flex-col items-end md:items-center">
+                <div className="col-span-1 md:col-span-3 flex justify-between items-center md:flex-col md:justify-center md:items-start text-sm gap-1">
+                  <span className="md:hidden font-semibold text-secondary">Stock:</span>
+                  <div className="flex flex-col items-end md:items-start">
                     {editingStockId === p.id ? (
                       <div className="flex items-center gap-1 my-0.5">
                         <input
@@ -949,45 +949,45 @@ export default function Inventory({ inventoryData }) {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1">
-                        {/* Quick Stock - Step Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleQuickAdjustStock(p, -1, e)}
-                          className="w-6 h-6 rounded-full bg-surface-container-high hover:bg-error-container text-error border border-surface-container-highest font-bold text-xs flex items-center justify-center transition-all active:scale-95 shadow-2xs"
-                          title={`Restar ${p.tipoVenta === 'unidad' ? '1 un' : p.tipoVenta === 'grs' ? '100g' : '0,5 kg'} al stock`}
-                        >
-                          -
-                        </button>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Stepper Pill Container for Stock */}
+                        <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickAdjustStock(p, -1, e)}
+                            className="w-7 h-6 rounded-lg text-error hover:bg-error-container/40 font-black text-sm flex items-center justify-center transition-all active:scale-90"
+                            title={`Restar ${p.tipoVenta === 'unidad' ? '1 un' : p.tipoVenta === 'grs' ? '100g' : '1 kg'} al stock`}
+                          >
+                            -
+                          </button>
 
-                        {/* Stock Click-to-Edit Badge */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleStartEditStock(p, e)}
-                          className="font-bold text-sm bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer group shadow-2xs"
-                          title="Haz clic para modificar el stock directamente"
-                        >
-                          <span>{formatQuantity(p.stockActual)}</span>
-                          <span className="text-[10px] text-secondary">{p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}</span>
-                          <span className="material-symbols-outlined text-xs text-secondary/60 group-hover:text-primary transition-colors">edit</span>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleStartEditStock(p, e)}
+                            className="px-2 py-0.5 font-bold text-on-surface text-xs hover:bg-white rounded-md transition-colors flex items-center gap-0.5"
+                            title="Haz clic para escribir el stock exacto"
+                          >
+                            <span>{formatQuantity(p.stockActual)}</span>
+                            <span className="text-[10px] text-secondary font-normal">{p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}</span>
+                            <span className="material-symbols-outlined text-[11px] opacity-60">edit</span>
+                          </button>
 
-                        {/* Quick Stock + Step Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleQuickAdjustStock(p, 1, e)}
-                          className="w-6 h-6 rounded-full bg-surface-container-high hover:bg-emerald-100 text-emerald-800 border border-surface-container-highest font-bold text-xs flex items-center justify-center transition-all active:scale-95 shadow-2xs"
-                          title={`Sumar ${p.tipoVenta === 'unidad' ? '1 un' : p.tipoVenta === 'grs' ? '100g' : '0,5 kg'} al stock`}
-                        >
-                          +
-                        </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickAdjustStock(p, 1, e)}
+                            className="w-7 h-6 rounded-lg text-emerald-800 hover:bg-emerald-100 font-black text-sm flex items-center justify-center transition-all active:scale-90"
+                            title={`Sumar ${p.tipoVenta === 'unidad' ? '1 un' : p.tipoVenta === 'grs' ? '100g' : '1 kg'} al stock`}
+                          >
+                            +
+                          </button>
+                        </div>
 
                         {isLowStock ? (
-                          <span className="px-1.5 py-0.5 rounded-full bg-error-container text-on-error-container font-bold text-[10px] flex items-center gap-0.5">
+                          <span className="px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-bold text-[10px] flex items-center gap-0.5">
                             <span className="material-symbols-outlined text-[10px]">warning</span> Bajo
                           </span>
                         ) : (
-                          <span className="px-1.5 py-0.5 rounded-full bg-primary-container/30 text-primary font-bold text-[10px]">
+                          <span className="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary font-bold text-[10px]">
                             OK
                           </span>
                         )}
@@ -995,7 +995,7 @@ export default function Inventory({ inventoryData }) {
                     )}
 
                     {p.stockActual > 0 && (
-                      <span className="text-[11px] font-bold text-emerald-800 text-right md:text-center mt-0.5" title="Potencial de venta total esperado para este producto">
+                      <span className="text-[11px] font-bold text-emerald-800 text-right md:text-left mt-1" title="Potencial de venta total esperado para este producto">
                         Potencial: ${formatPrice(calcProductValuation(p).venta)}
                       </span>
                     )}
