@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>La Malila - Redirigiendo...</title>
+  <script>
+    // GitHub Pages SPA Redirect Helper
+    var l = window.location;
+    if (l.pathname.toLowerCase().includes('/tienda')) {
+      l.replace(l.protocol + '//' + l.host + l.pathname.replace(/\/tienda\/?$/, '/') + '?tienda=1');
+    } else {
+      l.replace(l.protocol + '//' + l.host + l.pathname.substring(0, l.pathname.lastIndexOf('/')) + '/');
+    }
+  </script>
+</head>
+<body>
+  <p>Redirigiendo a La Malila...</p>
+</body>
+</html>
