@@ -26,7 +26,6 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
       }];
       recordSale(itemsFormatted, totalAcumulado, 'Venta Rápida', 'Mostrador (Venta por Calculadora)');
     }
-    alert(`¡Venta rápida de $${formatPrice(totalAcumulado)} registrada con éxito!`);
   };
 
   useEffect(() => {
@@ -236,6 +235,7 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
         isOpen={showCalculator}
         onClose={() => setShowCalculator(false)}
         onConfirmSale={handleConfirmQuickCalculatorSale}
+        sales={salesData?.sales || []}
       />
 
       {/* Ticket / Current Cart Card */}

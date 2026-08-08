@@ -70,7 +70,7 @@ const playCashRegisterChime = () => {
   }
 };
 
-export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale }) {
+export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, sales = [] }) {
   const [currentInput, setCurrentInput] = useState('');
   const [breakdown, setBreakdown] = useState([]);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
@@ -79,6 +79,13 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
   const formatPrice = (num) => Math.round(Number(num)).toLocaleString('es-AR');
 
   const totalAcumulado = breakdown.reduce((sum, item) => sum + item.monto, 0);
+
+  // Numero de Venta del dia
+  const todaySalesCount = (sales || []).filter(s => {
+    if (!s.fecha) return false;
+    return new Date(s.fecha).toDateString() === new Date().toDateString();
+  }).length;
+  const saleNumberToday = todaySalesCount + 1;
 
   // Keyboard Handler for desktop speed
   useEffect(() => {
@@ -154,13 +161,12 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
     setPaidAmount(totalAcumulado);
     setShowSuccessAnimation(true);
 
-    // 3. Confirmar la venta tras la animacion (1.4s)
+    // 3. Mostrar ventana por 3 segundos (3000ms), guardar venta y volver a la calculadora limpia
     setTimeout(() => {
       onConfirmSale(totalAcumulado, breakdown);
       handleResetAll();
       setShowSuccessAnimation(false);
-      onClose();
-    }, 1400);
+    }, 3000);
   };
 
   return (
@@ -184,6 +190,9 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
           </div>
 
           <div>
+            <span className="px-3 py-1 bg-emerald-100 text-emerald-900 font-extrabold text-xs rounded-full inline-block mb-2 border border-emerald-200 shadow-2xs">
+              Venta N° {saleNumberToday} del día
+            </span>
             <h3 className="text-2xl font-black text-emerald-950 uppercase tracking-tight">
               ¡PAGO REALIZADO!
             </h3>
@@ -191,7 +200,7 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
               ${formatPrice(paidAmount)}
             </span>
             <p className="text-xs font-bold text-secondary mt-1">
-              Venta de caja registrada con éxito 💵
+              Venta registrada con éxito 💵
             </p>
           </div>
 
