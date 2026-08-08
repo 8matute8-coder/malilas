@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>La Malila - Verdulería & Frutería</title>
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#3c6a00",
+              "primary-container": "#7cb342",
+              "primary-fixed-dim": "#9dd761",
+              surface: "#fbf9f8",
+              "surface-container-low": "#f5f3f3",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-highest": "#e4e2e1",
+              "on-surface": "#1b1c1c",
+              secondary: "#5e5e5b",
+              error: "#ba1a1a",
+              "error-container": "#ffdad6",
+              "on-error-container": "#93000a"
+            },
+            fontFamily: {
+              sans: ["Plus Jakarta Sans", "sans-serif"]
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .icon-fill {
+        font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <script type="module" crossorigin src="./assets/index-C6sLzYhO.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-C4qBkJ6h.css">
+  </head>
+  <body class="bg-surface text-on-surface font-sans antialiased h-full flex flex-col">
+    <div id="root" class="h-full"></div>
+  </body>
+</html>
