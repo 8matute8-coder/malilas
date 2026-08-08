@@ -39,28 +39,42 @@ export default function Estadisticas({ salesData, ordersData }) {
 
     filteredSales.forEach(sale => {
       totalRevenue += sale.total;
-      if (sale.type === 'Local') totalLocal++;
+      if (sale.type === 'Local' || sale.type === 'Venta Rápida') totalLocal++;
       if (sale.type === 'Delivery') totalDelivery++;
 
-      sale.items.forEach(item => {
-        let itemQty = parseFloat(item.quantity) || 0;
-        let mult = item.product.tipoVenta === 'grs' ? (itemQty / 100) : itemQty;
+      const isCalculatorSale = 
+        sale.type === 'Venta Rápida' ||
+        sale.originalOrder === 'Mostrador (Calculadora)' ||
+        sale.cliente === 'Mostrador (Calculadora)';
 
-        const itemCost = mult * (item.product.costoPromedio || 0);
-        totalCost += itemCost;
+      // Solo procesar productos individuales si NO es una venta manual por calculadora
+      if (!isCalculatorSale && sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach(item => {
+          if (!item.product || !item.product.nombre) return;
+          const pName = item.product.nombre;
+          
+          // Omitir items comodin de calculadora
+          if (pName.startsWith('Item ') || pName.startsWith('Monto ') || item.isCalculator) return;
 
-        if (!productCounts[item.product.nombre]) {
-          productCounts[item.product.nombre] = {
-            quantity: 0,
-            revenue: 0,
-            cost: 0,
-            tipoVenta: item.product.tipoVenta
-          };
-        }
-        productCounts[item.product.nombre].quantity += itemQty;
-        productCounts[item.product.nombre].revenue += (mult * item.product.precioVenta);
-        productCounts[item.product.nombre].cost += itemCost;
-      });
+          let itemQty = parseFloat(item.quantity) || 0;
+          let mult = item.product.tipoVenta === 'grs' ? (itemQty / 100) : itemQty;
+
+          const itemCost = mult * (item.product.costoPromedio || 0);
+          totalCost += itemCost;
+
+          if (!productCounts[pName]) {
+            productCounts[pName] = {
+              quantity: 0,
+              revenue: 0,
+              cost: 0,
+              tipoVenta: item.product.tipoVenta || 'unidad'
+            };
+          }
+          productCounts[pName].quantity += itemQty;
+          productCounts[pName].revenue += (mult * (item.product.precioVenta || 0));
+          productCounts[pName].cost += itemCost;
+        });
+      }
     });
 
     const totalProfit = totalRevenue - totalCost;

@@ -19,9 +19,10 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
   const handleConfirmQuickCalculatorSale = (totalAcumulado, breakdownList) => {
     if (recordSale) {
       const itemsFormatted = breakdownList.map((item, idx) => ({
-        product: { nombre: `Item ${idx + 1} ($${formatPrice(item.monto)})` },
+        product: { nombre: `Monto Calculadora #${idx + 1}`, tipoVenta: 'unidad', costoPromedio: 0, precioVenta: item.monto },
         quantity: 1,
-        precioVenta: item.monto
+        precioVenta: item.monto,
+        isCalculator: true
       }));
       recordSale(itemsFormatted, totalAcumulado, 'Venta Rápida', 'Mostrador (Calculadora)');
     }
