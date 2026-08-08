@@ -3,7 +3,12 @@ import { useInventory } from '../hooks/useInventory';
 import { useOrders } from '../hooks/useOrders';
 import { getProductImage } from '../utils/productImages';
 
-const FRUTAS_LIST = ['mandarina', 'manzana', 'pera', 'banana', 'limón', 'limon', 'pomelo', 'naranja', 'palta', 'frutilla'];
+const FRUTAS_LIST = [
+  'mandarina', 'manzana', 'pera', 'banana', 'limón', 'limon', 'pomelo', 'naranja', 
+  'palta', 'frutilla', 'durazno', 'ciruela', 'uva', 'kiwi', 'melon', 'melón', 
+  'sandia', 'sandía', 'anana', 'ananá', 'mango', 'arandano', 'arándano', 'higo', 
+  'cereza', 'damasco', 'pelon', 'pelón', 'frambuesa', 'mora'
+];
 
 export default function Tienda() {
   const { products } = useInventory();
