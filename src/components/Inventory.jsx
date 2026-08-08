@@ -995,9 +995,13 @@ export default function Inventory({ inventoryData }) {
                     )}
 
                     {p.stockActual > 0 && (
-                      <span className="text-[11px] font-bold text-emerald-800 text-right md:text-left mt-1" title="Potencial de venta total esperado para este producto">
-                        Potencial: ${formatPrice(calcProductValuation(p).venta)}
-                      </span>
+                      <div 
+                        className="inline-flex items-center gap-1 bg-emerald-50/90 hover:bg-emerald-100/90 text-emerald-900 border border-emerald-200/80 px-2 py-0.5 rounded-lg text-[11px] font-bold mt-1 shadow-2xs transition-colors" 
+                        title="Potencial de venta total esperado para el stock actual de este producto"
+                      >
+                        <span className="material-symbols-outlined text-[13px] text-emerald-700">payments</span>
+                        <span>Potencial: <strong>${formatPrice(calcProductValuation(p).venta)}</strong></span>
+                      </div>
                     )}
                   </div>
                 </div>
