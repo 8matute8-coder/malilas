@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useInventory } from '../hooks/useInventory';
 import { useOrders } from '../hooks/useOrders';
 import { getProductImage } from '../utils/productImages';
+import { useActiveVisitors } from '../hooks/useActiveVisitors';
 
 const FRUTAS_LIST = [
   'mandarina', 'manzana', 'pera', 'banana', 'limón', 'limon', 'pomelo', 'naranja', 
@@ -11,6 +12,7 @@ const FRUTAS_LIST = [
 ];
 
 export default function Tienda() {
+  useActiveVisitors(true); // Heartbeat activo para clientes en la tienda
   const { products } = useInventory();
   const { addOrder } = useOrders();
   const [cart, setCart] = useState([]);

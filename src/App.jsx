@@ -4,6 +4,7 @@ import { useOrders } from './hooks/useOrders';
 import { useSales } from './hooks/useSales';
 import { useAccounting } from './hooks/useAccounting';
 import { useContacts } from './hooks/useContacts';
+import { useActiveVisitors } from './hooks/useActiveVisitors';
 import Inventory from './components/Inventory';
 import Caja from './components/Caja';
 import Delivery from './components/Delivery';
@@ -14,6 +15,7 @@ import Login from './components/Login';
 import './index.css';
 
 function App() {
+  const { activeCount } = useActiveVisitors(false);
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem('lamalila_auth_token') === 'logged_in_belen';
   });
@@ -92,8 +94,20 @@ function App() {
           ))}
         </nav>
 
-        {/* Action Buttons: Webshop, Settings & Logout */}
+        {/* Action Buttons: Webshop, Live Visitors, Settings & Logout */}
         <div className="flex items-center gap-2">
+          {/* Live Visitor Presence Badge */}
+          <div 
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-900 font-extrabold text-xs shadow-2xs" 
+            title="Clientes navegando actualmente la tienda web en tiempo real"
+          >
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span>{activeCount} {activeCount === 1 ? 'cliente online' : 'clientes online'}</span>
+          </div>
+
           <a
             href="./?tienda=1"
             target="_blank"
