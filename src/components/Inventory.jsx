@@ -17,10 +17,13 @@ export default function Inventory({ inventoryData }) {
   const [mermaForm, setMermaForm] = useState({ quantity: '', motive: '' });
   const [editingPriceId, setEditingPriceId] = useState(null);
   const [inlinePriceInput, setInlinePriceInput] = useState('');
+  const [editingStockId, setEditingStockId] = useState(null);
+  const [inlineStockInput, setInlineStockInput] = useState('');
 
   const formatPrice = (num) => Math.round(Number(num)).toLocaleString('es-AR');
   const formatQuantity = (num) => Number(num).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
+  // Ajuste de Precio
   const handleStartEditPrice = (p, e) => {
     if (e) e.stopPropagation();
     setEditingPriceId(p.id);
@@ -36,6 +39,51 @@ export default function Inventory({ inventoryData }) {
       });
     }
     setEditingPriceId(null);
+  };
+
+  const handleQuickAdjustPrice = (p, delta, e) => {
+    if (e) e.stopPropagation();
+    const current = parseFloat(p.precioVenta) || 0;
+    const updated = Math.max(0, Math.round(current + delta));
+    saveProduct({
+      ...p,
+      precioVenta: updated
+    });
+  };
+
+  // Ajuste de Stock Directo
+  const handleStartEditStock = (p, e) => {
+    if (e) e.stopPropagation();
+    setEditingStockId(p.id);
+    setInlineStockInput(p.stockActual.toString());
+  };
+
+  const handleSaveInlineStock = (p) => {
+    const newStock = parseInput(inlineStockInput);
+    if (!isNaN(newStock) && newStock >= 0) {
+      saveProduct({
+        ...p,
+        stockActual: newStock
+      });
+    }
+    setEditingStockId(null);
+  };
+
+  const getStockStep = (tipoVenta) => {
+    if (tipoVenta === 'unidad') return 1;
+    if (tipoVenta === 'grs') return 100;
+    return 0.5; // kg
+  };
+
+  const handleQuickAdjustStock = (p, deltaMultiplier, e) => {
+    if (e) e.stopPropagation();
+    const step = getStockStep(p.tipoVenta);
+    const current = parseFloat(p.stockActual) || 0;
+    const updated = Math.max(0, Number((current + (step * deltaMultiplier)).toFixed(2)));
+    saveProduct({
+      ...p,
+      stockActual: updated
+    });
   };
 
   const calcGananciaPorcentaje = (precio, costo) => {
@@ -820,16 +868,38 @@ export default function Inventory({ inventoryData }) {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {/* Quick -100 Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
+                          className="w-6 h-6 rounded-md bg-surface-container-high hover:bg-amber-100 text-amber-900 border border-surface-container-highest font-bold text-[10px] flex items-center justify-center transition-all active:scale-95 shadow-2xs"
+                          title="Restar $100 al precio de venta"
+                        >
+                          -100
+                        </button>
+
+                        {/* Price Click-to-Edit Badge */}
                         <button
                           type="button"
                           onClick={(e) => handleStartEditPrice(p, e)}
                           className="font-bold text-primary bg-primary-container/20 hover:bg-primary-container/40 border border-primary/20 px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer group shadow-2xs"
-                          title="Haz clic para modificar el precio de venta rápidamente"
+                          title="Haz clic para ingresar un precio de venta exacto"
                         >
                           <span>${formatPrice(p.precioVenta)}</span>
                           <span className="material-symbols-outlined text-xs text-primary/60 group-hover:text-primary transition-colors">edit</span>
                         </button>
+
+                        {/* Quick +100 Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
+                          className="w-6 h-6 rounded-md bg-surface-container-high hover:bg-emerald-100 text-emerald-900 border border-surface-container-highest font-bold text-[10px] flex items-center justify-center transition-all active:scale-95 shadow-2xs"
+                          title="Sumar $100 al precio de venta"
+                        >
+                          +100
+                        </button>
+
                         <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-extrabold text-[11px]" title="Porcentaje de ganancia sobre el costo">
                           +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
                         </span>
@@ -847,18 +917,83 @@ export default function Inventory({ inventoryData }) {
                 <div className="col-span-1 md:col-span-2 flex justify-between items-center md:flex-col md:justify-center md:items-center">
                   <span className="md:hidden font-semibold text-secondary text-sm">Stock:</span>
                   <div className="flex flex-col items-end md:items-center">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-sm">{formatQuantity(p.stockActual)}</span>
-                      {isLowStock ? (
-                        <span className="px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-bold text-xs flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-xs">warning</span> Bajo
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary font-bold text-xs">
-                          OK
-                        </span>
-                      )}
-                    </div>
+                    {editingStockId === p.id ? (
+                      <div className="flex items-center gap-1 my-0.5">
+                        <input
+                          type="number"
+                          step="any"
+                          autoFocus
+                          className="w-20 bg-primary-container/20 border border-primary text-on-surface font-bold text-xs p-1 rounded-lg outline-none"
+                          value={inlineStockInput}
+                          onChange={(e) => setInlineStockInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveInlineStock(p);
+                            if (e.key === 'Escape') setEditingStockId(null);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveInlineStock(p)}
+                          className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shadow-2xs hover:bg-surface-tint"
+                          title="Guardar nuevo stock"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingStockId(null)}
+                          className="w-6 h-6 rounded-full bg-surface-container-highest text-secondary flex items-center justify-center text-xs font-bold hover:bg-surface-container-high"
+                          title="Cancelar"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        {/* Quick Stock - Step Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleQuickAdjustStock(p, -1, e)}
+                          className="w-6 h-6 rounded-full bg-surface-container-high hover:bg-error-container text-error border border-surface-container-highest font-bold text-xs flex items-center justify-center transition-all active:scale-95 shadow-2xs"
+                          title={`Restar ${p.tipoVenta === 'unidad' ? '1 un' : p.tipoVenta === 'grs' ? '100g' : '0,5 kg'} al stock`}
+                        >
+                          -
+                        </button>
+
+                        {/* Stock Click-to-Edit Badge */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleStartEditStock(p, e)}
+                          className="font-bold text-sm bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest px-2 py-0.5 rounded-lg transition-all flex items-center gap-1 cursor-pointer group shadow-2xs"
+                          title="Haz clic para modificar el stock directamente"
+                        >
+                          <span>{formatQuantity(p.stockActual)}</span>
+                          <span className="text-[10px] text-secondary">{p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}</span>
+                          <span className="material-symbols-outlined text-xs text-secondary/60 group-hover:text-primary transition-colors">edit</span>
+                        </button>
+
+                        {/* Quick Stock + Step Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleQuickAdjustStock(p, 1, e)}
+                          className="w-6 h-6 rounded-full bg-surface-container-high hover:bg-emerald-100 text-emerald-800 border border-surface-container-highest font-bold text-xs flex items-center justify-center transition-all active:scale-95 shadow-2xs"
+                          title={`Sumar ${p.tipoVenta === 'unidad' ? '1 un' : p.tipoVenta === 'grs' ? '100g' : '0,5 kg'} al stock`}
+                        >
+                          +
+                        </button>
+
+                        {isLowStock ? (
+                          <span className="px-1.5 py-0.5 rounded-full bg-error-container text-on-error-container font-bold text-[10px] flex items-center gap-0.5">
+                            <span className="material-symbols-outlined text-[10px]">warning</span> Bajo
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded-full bg-primary-container/30 text-primary font-bold text-[10px]">
+                            OK
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {p.stockActual > 0 && (
                       <span className="text-[11px] font-bold text-emerald-800 text-right md:text-center mt-0.5" title="Potencial de venta total esperado para este producto">
                         Potencial: ${formatPrice(calcProductValuation(p).venta)}
