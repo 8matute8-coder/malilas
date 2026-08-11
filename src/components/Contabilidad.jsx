@@ -15,6 +15,8 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
 
   // Modal / Form States
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [purchaseForm, setPurchaseForm] = useState({
     productId: '', 
     productNombre: '', 
@@ -73,6 +75,10 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
   const egresosTotales = totalCompras + totalGastosFijosPagados + totalGastosExtras;
   const balanceGeneral = ingresosTotales - egresosTotales;
 
+  const filteredProductsForPurchase = products.filter(p =>
+    p.nombre.toLowerCase().includes((productSearchQuery || '').toLowerCase())
+  );
+
   // Submit Purchase (and Auto-Sync or Create Inventory Product)
   const handlePurchaseSubmit = async (e) => {
     e.preventDefault();
@@ -90,7 +96,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
     // Si el usuario seleccionó crear un NUEVO producto:
     if (purchaseForm.isNewProduct || !targetProductId) {
       if (!pNombre) {
-        alert('Por favor ingresa el nombre del nuevo producto.');
+        alert('Por favor ingresa el nombre del producto.');
         return;
       }
 
@@ -125,8 +131,9 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
       categoria: 'Mercadería (Stock)',
       isNewProduct: false, tipoVenta: 'unidad', precioVenta: '', porcentajeGanancia: '50'
     });
+    setProductSearchQuery('');
+    setShowProductDropdown(false);
     setShowPurchaseModal(false);
-    alert(`¡Compra de "${pNombre}" registrada con éxito! El producto y su stock se han guardado en el inventario.`);
   };
 
   // Submit Expense
@@ -424,38 +431,100 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Seleccionar o Crear Producto *</label>
-                <select 
-                  required
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-on-surface"
-                  value={purchaseForm.isNewProduct ? 'new' : purchaseForm.productId}
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val === 'new') {
-                      setPurchaseForm({
-                        ...purchaseForm,
-                        isNewProduct: true,
+              {/* Buscador interactivo con Autocompletado de Producto */}
+              <div className="relative">
+                <label className="block text-xs font-bold text-secondary mb-1">Buscar o Escribir Nombre de Producto *</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 pr-10 text-sm outline-none focus:border-primary font-bold text-on-surface"
+                    placeholder="🔍 Escribe para buscar (Ej: Tomate, Manzana, Bolsa...)"
+                    value={productSearchQuery}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProductSearchQuery(val);
+                      setShowProductDropdown(true);
+                      setPurchaseForm(prev => ({
+                        ...prev,
                         productId: '',
-                        productNombre: ''
-                      });
-                    } else {
-                      const p = products.find(prod => prod.id === val);
-                      setPurchaseForm({
-                        ...purchaseForm,
-                        isNewProduct: false,
-                        productId: val,
-                        productNombre: p ? p.nombre : ''
-                      });
-                    }
-                  }}
-                >
-                  <option value="">-- Seleccionar producto existente --</option>
-                  <option value="new" className="font-extrabold text-primary">✨ + Crear y Sumar NUEVO Producto al Inventario</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.nombre} ({p.tipoVenta})</option>
-                  ))}
-                </select>
+                        productNombre: val,
+                        isNewProduct: false
+                      }));
+                    }}
+                    onFocus={() => setShowProductDropdown(true)}
+                  />
+                  {productSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductSearchQuery('');
+                        setShowProductDropdown(false);
+                        setPurchaseForm(prev => ({
+                          ...prev,
+                          productId: '',
+                          productNombre: '',
+                          isNewProduct: false
+                        }));
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-on-surface font-bold text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Autocomplete Dropdown List */}
+                {showProductDropdown && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-surface-container-highest rounded-2xl shadow-xl z-30 max-h-60 overflow-y-auto divide-y divide-surface-container-highest">
+                    {filteredProductsForPurchase.length === 0 ? (
+                      <div className="p-3 text-xs text-secondary italic text-center">
+                        No se encontraron productos existentes con "{productSearchQuery}"
+                      </div>
+                    ) : (
+                      filteredProductsForPurchase.map(p => (
+                        <div
+                          key={p.id}
+                          onClick={() => {
+                            setPurchaseForm(prev => ({
+                              ...prev,
+                              productId: p.id,
+                              productNombre: p.nombre,
+                              isNewProduct: false
+                            }));
+                            setProductSearchQuery(`${p.nombre} (${p.tipoVenta === 'unidad' ? 'un' : p.tipoVenta})`);
+                            setShowProductDropdown(false);
+                          }}
+                          className="p-3 hover:bg-primary-container/20 cursor-pointer flex justify-between items-center text-sm font-semibold transition-colors"
+                        >
+                          <span className="font-bold text-on-surface">{p.nombre}</span>
+                          <span className="text-xs bg-surface-container-high px-2 py-0.5 rounded-md text-secondary font-bold">
+                            {p.tipoVenta} • Stock: {p.stockActual}
+                          </span>
+                        </div>
+                      ))
+                    )}
+
+                    {/* Button option to create a brand new product */}
+                    <div
+                      onClick={() => {
+                        const newName = productSearchQuery.trim() || 'Nuevo Producto';
+                        setPurchaseForm(prev => ({
+                          ...prev,
+                          productId: '',
+                          productNombre: newName,
+                          isNewProduct: true
+                        }));
+                        setProductSearchQuery(newName);
+                        setShowProductDropdown(false);
+                      }}
+                      className="p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 cursor-pointer flex items-center gap-2 text-xs font-extrabold transition-colors border-t border-emerald-200"
+                    >
+                      <span className="material-symbols-outlined text-base text-emerald-700">add_circle</span>
+                      <span>✨ + Crear "{productSearchQuery || 'Nuevo Producto'}" como NUEVO producto en inventario</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {purchaseForm.isNewProduct && (
