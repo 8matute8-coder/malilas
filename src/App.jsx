@@ -55,7 +55,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background text-on-background font-sans pb-24 md:pb-8 flex flex-col">
       {/* Stitch TopAppBar Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-surface-container-highest shadow-xs px-4 md:px-8 h-16 md:h-20 flex justify-between items-center max-w-7xl mx-auto w-full">
+      <header className="sticky top-0 z-50 bg-white border-b border-surface-container-highest shadow-xs px-4 md:px-8 h-16 md:h-20 flex justify-between items-center w-full">
         <div className="flex items-center gap-3">
           <img src="./logo.jpg" alt="La Malila Logo" className="h-10 md:h-12 w-auto object-contain rounded-full border border-primary/20 shadow-xs" />
           <div>
@@ -163,7 +163,7 @@ function App() {
       )}
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8">
+      <main className="flex-1 w-full p-4 md:p-8">
         <div className={activeTab === 'caja' ? 'block' : 'hidden'}>
           <Caja inventoryData={inventoryData} salesData={salesData} aliasBancario={aliasBancario} />
         </div>

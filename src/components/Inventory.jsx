@@ -956,7 +956,7 @@ export default function Inventory({ inventoryData, accountingData }) {
   const sortedProducts = [...filteredProducts].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 animate-fade-in w-full">
       {/* Financial Valuation Summary Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-surface-container-low border-t-4 border-t-blue-600 flex flex-col justify-between">

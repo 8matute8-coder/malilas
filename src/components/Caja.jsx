@@ -346,8 +346,8 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
       {/* POS Main Grid: Ticket Panel + Catalog Search */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* TICKET / CARRITO DE VENTA PANEL (Col 5) */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
+        {/* TICKET / CARRITO DE VENTA PANEL (Col 4 en XL, Col 5 en LG) */}
+        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4">
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-surface-container-low flex flex-col gap-4">
             <div className="flex justify-between items-center border-b border-surface-container-highest pb-3">
               <div className="flex items-center gap-2">
@@ -542,8 +542,8 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
           </div>
         </div>
 
-        {/* CATALOG PRODUCTS SEARCH & GRID (Col 7) */}
-        <div className="lg:col-span-7 flex flex-col gap-4">
+        {/* CATALOG PRODUCTS SEARCH & GRID (Col 8 en XL, Col 7 en LG) */}
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4">
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary">
               search

@@ -401,7 +401,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 animate-fade-in w-full">
       {/* Header Dashboard & Action Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl border border-surface-container-low shadow-sm">
         <div>
