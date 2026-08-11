@@ -617,56 +617,62 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
 
       </div>
 
-      {/* POPUP MODAL FOR ADDING PRODUCT TO TICKET */}
+      {/* POPUP MODAL FOR ADDING PRODUCT TO TICKET (FULL AVAILABLE SPACE) */}
       {modalProduct && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in backdrop-blur-xs">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-md flex flex-col gap-5 shadow-2xl border border-surface-container-highest">
-            {/* Grab handle bar */}
-            <div className="w-12 h-1 bg-surface-container-highest rounded-full mx-auto mb-1"></div>
+        <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[120] bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 pb-20 sm:pb-6 h-[100dvh] w-screen overflow-hidden animate-fade-in">
+          <div className="bg-white rounded-3xl p-5 sm:p-7 w-full max-w-2xl max-h-[calc(100dvh-85px)] sm:max-h-[92vh] flex flex-col justify-between shadow-2xl border border-surface-container-highest my-auto overflow-y-auto gap-5">
+            
+            {/* Top Bar with Grab Indicator & Close Button */}
+            <div>
+              <div className="w-12 h-1 bg-surface-container-highest rounded-full mx-auto mb-3"></div>
 
-            {/* Product Summary Header */}
-            <div className="flex justify-between items-start border-b border-surface-container-highest pb-4">
-              <div className="flex items-center gap-3.5">
-                <img 
-                  src={getProductImage(modalProduct)} 
-                  alt={modalProduct.nombre} 
-                  className="w-16 h-16 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-xs" 
-                />
-                <div>
-                  <h3 className="text-xl font-bold text-on-surface leading-snug">{modalProduct.nombre}</h3>
-                  <p className="text-xs text-secondary">
-                    Stock disponible: {formatQuantity(modalProduct.stockActual)} {modalProduct.tipoVenta}
-                  </p>
-                  <p className="text-base font-bold text-primary mt-0.5">
-                    ${formatPrice(modalProduct.precioVenta)} <span className="text-xs font-normal text-secondary">/ {modalProduct.tipoVenta === 'grs' ? '100g' : modalProduct.tipoVenta}</span>
-                  </p>
+              {/* Product Summary Header */}
+              <div className="flex justify-between items-start border-b border-surface-container-highest pb-4">
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={getProductImage(modalProduct)} 
+                    alt={modalProduct.nombre} 
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-sm" 
+                  />
+                  <div>
+                    <h3 className="text-xl sm:text-2xl font-black text-on-surface leading-tight">{modalProduct.nombre}</h3>
+                    <span className="text-xs sm:text-sm font-extrabold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 inline-block mt-1">
+                      Stock disponible: {formatQuantity(modalProduct.stockActual)} {modalProduct.tipoVenta}
+                    </span>
+                    <p className="text-lg sm:text-xl font-black text-primary mt-1">
+                      ${formatPrice(modalProduct.precioVenta)} <span className="text-xs font-normal text-secondary">/ {modalProduct.tipoVenta === 'grs' ? '100g' : modalProduct.tipoVenta}</span>
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <button 
-                onClick={() => setModalProduct(null)}
-                className="p-1.5 rounded-full text-secondary hover:bg-surface-container-low transition-colors"
-              >
-                <span className="material-symbols-outlined text-xl">close</span>
-              </button>
+                <button 
+                  onClick={() => setModalProduct(null)}
+                  className="w-10 h-10 rounded-full bg-surface-container-low hover:bg-surface-container-high text-secondary flex items-center justify-center transition-colors font-bold cursor-pointer"
+                  title="Cerrar"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Presets pills */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               {modalProduct.esOferta && (
                 <button
                   type="button"
                   onClick={() => setModalQty(parseFloat(modalProduct.cantidadOferta) || 1)}
-                  className="w-full py-3 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-sm shadow-md hover:brightness-105 transition-all active:scale-95 flex items-center justify-center gap-1.5 mb-1"
+                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-extrabold text-sm sm:text-base shadow-md hover:brightness-105 transition-all active:scale-98 flex items-center justify-center gap-2 mb-1 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-base">local_offer</span>
+                  <span className="material-symbols-outlined text-lg">local_offer</span>
                   <span>Aprovechar Oferta: {modalProduct.cantidadOferta} {modalProduct.tipoVenta === 'grs' ? 'g' : modalProduct.tipoVenta} x ${formatPrice(modalProduct.precioOferta)}</span>
                 </button>
               )}
 
-              <label className="text-sm font-bold text-on-surface">Agregar por cantidad:</label>
+              <label className="text-sm font-extrabold text-on-surface uppercase tracking-wider">
+                Selecciona Cantidad Rápida:
+              </label>
 
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-2.5">
                 {modalProduct.tipoVenta === 'kg' && [
                   { label: '1/4 kg', val: 0.25 },
                   { label: '1/2 kg', val: 0.5 },
@@ -677,10 +683,10 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
                     key={preset.label}
                     type="button"
                     onClick={() => addPresetToModal(preset.val)}
-                    className="relative py-3 px-2 rounded-xl bg-surface-container-low text-on-surface font-bold text-xs border border-surface-container-highest hover:border-primary hover:bg-primary-container/20 transition-all active:scale-95 text-center flex items-center justify-center"
+                    className="relative py-3.5 sm:py-4 px-2 rounded-2xl bg-surface-container-low text-on-surface font-black text-xs sm:text-sm border border-surface-container-highest hover:border-primary hover:bg-primary-container/20 transition-all active:scale-95 text-center flex items-center justify-center shadow-2xs cursor-pointer"
                   >
                     <span>{preset.label}</span>
-                    <span className="absolute -top-1.5 -right-1 bg-primary text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                    <span className="absolute -top-1.5 -right-1 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
                       +1
                     </span>
                   </button>
@@ -696,10 +702,10 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
                     key={preset.label}
                     type="button"
                     onClick={() => addPresetToModal(preset.val)}
-                    className="relative py-3 px-2 rounded-xl bg-surface-container-low text-on-surface font-bold text-xs border border-surface-container-highest hover:border-primary hover:bg-primary-container/20 transition-all active:scale-95 text-center flex items-center justify-center"
+                    className="relative py-3.5 sm:py-4 px-2 rounded-2xl bg-surface-container-low text-on-surface font-black text-xs sm:text-sm border border-surface-container-highest hover:border-primary hover:bg-primary-container/20 transition-all active:scale-95 text-center flex items-center justify-center shadow-2xs cursor-pointer"
                   >
                     <span>{preset.label}</span>
-                    <span className="absolute -top-1.5 -right-1 bg-primary text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                    <span className="absolute -top-1.5 -right-1 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
                       +1
                     </span>
                   </button>
@@ -715,10 +721,10 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
                     key={preset.label}
                     type="button"
                     onClick={() => addPresetToModal(preset.val)}
-                    className="relative py-3 px-2 rounded-xl bg-surface-container-low text-on-surface font-bold text-xs border border-surface-container-highest hover:border-primary hover:bg-primary-container/20 transition-all active:scale-95 text-center flex items-center justify-center"
+                    className="relative py-3.5 sm:py-4 px-2 rounded-2xl bg-surface-container-low text-on-surface font-black text-xs sm:text-sm border border-surface-container-highest hover:border-primary hover:bg-primary-container/20 transition-all active:scale-95 text-center flex items-center justify-center shadow-2xs cursor-pointer"
                   >
                     <span>{preset.label}</span>
-                    <span className="absolute -top-1.5 -right-1 bg-primary text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                    <span className="absolute -top-1.5 -right-1 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
                       +1
                     </span>
                   </button>
@@ -728,32 +734,32 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
 
             {/* Custom Quantity Input */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-secondary">O ingresa la cantidad exacta:</label>
-              <div className="flex items-center gap-2">
+              <label className="text-xs font-extrabold text-secondary">O escribe la cantidad exacta:</label>
+              <div className="flex items-center gap-3">
                 <input 
                   type="number"
                   step="any"
-                  className="flex-1 bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-lg font-bold text-on-surface outline-none focus:border-primary"
+                  className="flex-1 bg-surface-container-low border border-primary/40 rounded-2xl p-3.5 text-xl sm:text-2xl font-black text-primary outline-none focus:border-primary shadow-2xs"
                   value={modalQty}
                   onChange={(e) => setModalQty(e.target.value)}
                 />
-                <span className="text-sm font-bold text-secondary">{modalProduct.tipoVenta === 'grs' ? 'g' : modalProduct.tipoVenta}</span>
+                <span className="text-base font-black text-secondary">{modalProduct.tipoVenta === 'grs' ? 'g' : modalProduct.tipoVenta}</span>
               </div>
             </div>
 
             {/* Modal Bottom Subtotal & Confirm Button */}
             <div className="border-t border-surface-container-highest pt-4 flex items-center justify-between gap-4">
               <div>
-                <span className="text-xs text-secondary font-medium block">Subtotal estimado:</span>
-                <span className="text-2xl font-black text-primary">${formatPrice(getModalPrice())}</span>
+                <span className="text-xs text-secondary font-bold uppercase block">Subtotal a Cobrar:</span>
+                <span className="text-3xl font-black text-primary">${formatPrice(getModalPrice())}</span>
               </div>
 
               <button
                 type="button"
                 onClick={handleConfirmAddFromModal}
-                className="py-3.5 px-6 rounded-2xl bg-primary hover:bg-surface-tint text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2"
+                className="py-4 px-8 rounded-2xl bg-primary hover:bg-surface-tint text-white font-black text-base shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
               >
-                <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+                <span className="material-symbols-outlined text-xl">add_shopping_cart</span>
                 <span>Añadir al Ticket</span>
               </button>
             </div>
