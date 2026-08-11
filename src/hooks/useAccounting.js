@@ -48,14 +48,15 @@ export const useAccounting = (inventoryData) => {
       proveedor: purchaseData.proveedor || 'Proveedor General',
       cantidad: parseFloat(purchaseData.cantidad) || 0,
       costoUnitario: parseFloat(purchaseData.costoUnitario) || 0,
-      precioTotal: parseFloat(purchaseData.precioTotal) || 0
+      precioTotal: parseFloat(purchaseData.precioTotal) || 0,
+      categoria: purchaseData.categoria || 'Mercadería (Stock)'
     };
 
     try {
       await setDoc(doc(db, 'purchases', id), newPurchase);
 
-      // Sincronización automática de inventario
-      if (purchaseData.productId && inventoryData?.addStock) {
+      // Sincronización automática de inventario (solo si es Mercadería / Stock)
+      if (purchaseData.productId && inventoryData?.addStock && (!purchaseData.categoria || purchaseData.categoria.includes('Mercadería') || purchaseData.categoria.includes('Stock'))) {
         await inventoryData.addStock(
           purchaseData.productId, 
           newPurchase.cantidad, 
@@ -64,6 +65,14 @@ export const useAccounting = (inventoryData) => {
       }
     } catch (error) {
       console.error("Error registrando compra:", error);
+    }
+  };
+
+  const updatePurchaseCategory = async (id, categoria) => {
+    try {
+      await setDoc(doc(db, 'purchases', id), { categoria }, { merge: true });
+    } catch (err) {
+      console.error("Error actualizando categoría de compra:", err);
     }
   };
 
@@ -145,6 +154,7 @@ export const useAccounting = (inventoryData) => {
     expenses,
     extraMovements,
     recordPurchase,
+    updatePurchaseCategory,
     deletePurchase,
     recordExpense,
     toggleExpenseStatus,

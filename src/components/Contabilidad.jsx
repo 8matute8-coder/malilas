@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 export default function Contabilidad({ accountingData, inventoryData, salesData, contactsData }) {
   const { 
     purchases, expenses, extraMovements, 
-    recordPurchase, deletePurchase, 
+    recordPurchase, updatePurchaseCategory, deletePurchase, 
     recordExpense, toggleExpenseStatus, deleteExpense, 
     recordExtraMovement, deleteExtraMovement 
   } = accountingData;
@@ -21,6 +21,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
     proveedor: '', 
     cantidad: '', 
     precioTotal: '',
+    categoria: 'Mercadería (Stock)',
     isNewProduct: false,
     tipoVenta: 'unidad',
     precioVenta: '',
@@ -49,6 +50,14 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
   const totalGastosExtras = extraMovements
     .filter(m => m.tipo === 'gasto')
     .reduce((acc, m) => acc + (m.monto || 0), 0);
+
+  const totalComprasMercaderia = purchases
+    .filter(p => !p.categoria || p.categoria.includes('Mercadería') || p.categoria.includes('Stock'))
+    .reduce((acc, p) => acc + (p.precioTotal || 0), 0);
+
+  const totalComprasInsumos = purchases
+    .filter(p => p.categoria && (p.categoria.includes('Insumos') || p.categoria.includes('Extras')))
+    .reduce((acc, p) => acc + (p.precioTotal || 0), 0);
 
   const totalCompras = purchases.reduce((acc, p) => acc + (p.precioTotal || 0), 0);
 
@@ -107,11 +116,13 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
       proveedor: purchaseForm.proveedor || 'Proveedor General',
       cantidad: qty,
       precioTotal: total,
-      costoUnitario: unitCost
+      costoUnitario: unitCost,
+      categoria: purchaseForm.categoria || 'Mercadería (Stock)'
     });
 
     setPurchaseForm({
       productId: '', productNombre: '', proveedor: '', cantidad: '', precioTotal: '',
+      categoria: 'Mercadería (Stock)',
       isNewProduct: false, tipoVenta: 'unidad', precioVenta: '', porcentajeGanancia: '50'
     });
     setShowPurchaseModal(false);
@@ -293,22 +304,26 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
         </div>
 
         {/* Metric Summary */}
-        <div className="bg-white p-6 rounded-2xl border border-surface-container-low shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <span className="text-xs font-bold text-secondary uppercase tracking-wider block">Total Compras de Mercadería</span>
-            <span className="text-3xl font-black text-primary mt-1">${formatPrice(totalCompras)}</span>
+        <div className="bg-white p-5 rounded-2xl border border-surface-container-low shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="border-b sm:border-b-0 sm:border-r border-surface-container-highest pb-3 sm:pb-0 sm:pr-4">
+            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block">📦 Stock / Mercadería</span>
+            <span className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1 block">${formatPrice(totalComprasMercaderia)}</span>
+            <span className="text-[11px] text-secondary">Suma al stock de reventa</span>
           </div>
-          <div className="bg-primary-container/30 px-4 py-2 rounded-xl text-xs font-bold text-primary border border-primary/20">
-            📦 Compras registradas: {purchases.length}
+          <div>
+            <span className="text-xs font-bold text-amber-900 uppercase tracking-wider block">🛍️ Insumos & Gastos Extras</span>
+            <span className="text-2xl sm:text-3xl font-black text-amber-800 mt-1 block">${formatPrice(totalComprasInsumos)}</span>
+            <span className="text-[11px] text-secondary">Cinta, bolsas, film, papelería</span>
           </div>
         </div>
 
         {/* Purchases List */}
         <div className="bg-white rounded-2xl shadow-sm border border-surface-container-low overflow-hidden">
-          <div className="p-4 bg-surface-container-low border-b font-bold text-xs text-secondary uppercase tracking-wider grid grid-cols-12 gap-2">
-            <div className="col-span-4">Producto & Cantidad</div>
-            <div className="col-span-4">Proveedor & Fecha</div>
-            <div className="col-span-3 text-right">Total Pagado</div>
+          <div className="p-4 bg-surface-container-low border-b font-bold text-xs text-secondary uppercase tracking-wider grid grid-cols-12 gap-2 items-center">
+            <div className="col-span-3">Producto & Cantidad</div>
+            <div className="col-span-3">Categoría de Compra</div>
+            <div className="col-span-3">Proveedor & Fecha</div>
+            <div className="col-span-2 text-right">Total Pagado</div>
             <div className="col-span-1 text-right">Acción</div>
           </div>
 
@@ -318,40 +333,62 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                 <p className="font-semibold text-sm">No hay compras registradas.</p>
               </div>
             ) : (
-              purchases.map(p => (
-                <div key={p.id} className="p-4 grid grid-cols-12 gap-2 items-center hover:bg-surface-container-low transition-colors text-sm">
-                  <div className="col-span-4">
-                    <h4 className="font-bold text-on-surface">{p.productNombre}</h4>
-                    <span className="text-xs font-semibold text-primary bg-primary-container/30 px-2 py-0.5 rounded-md inline-block mt-0.5">
-                      Cantidad: {p.cantidad}
-                    </span>
-                  </div>
+              purchases.map(p => {
+                const cat = p.categoria || 'Mercadería (Stock)';
+                return (
+                  <div key={p.id} className="p-4 grid grid-cols-12 gap-2 items-center hover:bg-surface-container-low transition-colors text-sm">
+                    <div className="col-span-3">
+                      <h4 className="font-bold text-on-surface">{p.productNombre}</h4>
+                      <span className="text-xs font-semibold text-primary bg-primary-container/30 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                        Cantidad: {p.cantidad}
+                      </span>
+                    </div>
 
-                  <div className="col-span-4 text-xs text-secondary flex flex-col gap-0.5">
-                    <span className="font-semibold text-on-surface">🏢 {p.proveedor}</span>
-                    <span>📅 {new Date(p.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
+                    <div className="col-span-3">
+                      <select
+                        value={cat}
+                        onChange={(e) => updatePurchaseCategory && updatePurchaseCategory(p.id, e.target.value)}
+                        className={`text-xs font-extrabold px-2.5 py-1.5 rounded-xl border outline-none cursor-pointer transition-all ${
+                          cat.includes('Insumos')
+                            ? 'bg-amber-100/90 text-amber-950 border-amber-300 shadow-2xs'
+                            : cat.includes('Extras')
+                            ? 'bg-purple-100/90 text-purple-950 border-purple-300 shadow-2xs'
+                            : 'bg-emerald-100/90 text-emerald-950 border-emerald-300 shadow-2xs'
+                        }`}
+                        title="Toca para cambiar la categoría de esta compra"
+                      >
+                        <option value="Mercadería (Stock)">📦 Mercadería (Stock)</option>
+                        <option value="Insumos / Embalaje">🛍️ Insumos / Embalaje</option>
+                        <option value="Gastos Extras">🛒 Gastos Extras</option>
+                      </select>
+                    </div>
 
-                  <div className="col-span-3 text-right">
-                    <span className="font-black text-on-surface text-base block">${formatPrice(p.precioTotal)}</span>
-                    <span className="text-[10px] text-secondary">Costo unit: ${formatPrice(p.costoUnitario)}</span>
-                  </div>
+                    <div className="col-span-3 text-xs text-secondary flex flex-col gap-0.5">
+                      <span className="font-semibold text-on-surface">🏢 {p.proveedor}</span>
+                      <span>📅 {new Date(p.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
 
-                  <div className="col-span-1 text-right">
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`¿Eliminar el registro de compra de "${p.productNombre}" ($${formatPrice(p.precioTotal)})?`)) {
-                          deletePurchase(p.id);
-                        }
-                      }}
-                      className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
-                      title="Eliminar compra"
-                    >
-                      <span className="material-symbols-outlined text-lg">delete</span>
-                    </button>
+                    <div className="col-span-2 text-right">
+                      <span className="font-black text-on-surface text-base block">${formatPrice(p.precioTotal)}</span>
+                      <span className="text-[10px] text-secondary">Costo unit: ${formatPrice(p.costoUnitario)}</span>
+                    </div>
+
+                    <div className="col-span-1 text-right">
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`¿Eliminar el registro de compra de "${p.productNombre}" ($${formatPrice(p.precioTotal)})?`)) {
+                            deletePurchase(p.id);
+                          }
+                        }}
+                        className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
+                        title="Eliminar compra"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -366,6 +403,25 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                   <span>Registrar Compra de Mercadería</span>
                 </h3>
                 <button type="button" onClick={() => setShowPurchaseModal(false)} className="text-secondary font-bold hover:text-on-surface">✕</button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-secondary mb-1">Categoría de la Compra *</label>
+                <select 
+                  required
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-extrabold text-on-surface"
+                  value={purchaseForm.categoria}
+                  onChange={e => setPurchaseForm({ ...purchaseForm, categoria: e.target.value })}
+                >
+                  <option value="Mercadería (Stock)">📦 Mercadería (Stock de Reventa)</option>
+                  <option value="Insumos / Embalaje">🛍️ Insumos / Embalaje (Bolsas, Cinta, Film)</option>
+                  <option value="Gastos Extras">🛒 Gastos Extras / Varios del Local</option>
+                </select>
+                <p className="text-[11px] font-semibold text-secondary mt-1">
+                  {purchaseForm.categoria === 'Mercadería (Stock)' 
+                    ? '✨ Esta compra sumará stock al inventario.' 
+                    : 'ℹ️ Insumos o gastos extras NO modifican el stock de reventa.'}
+                </p>
               </div>
 
               <div>

@@ -87,6 +87,18 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
   }).length;
   const saleNumberToday = todaySalesCount + 1;
 
+  // Bloquear scroll de fondo en navegadores moviles al abrir la calculadora
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   // Keyboard Handler for desktop speed
   useEffect(() => {
     if (!isOpen || showSuccessAnimation) return;
@@ -170,11 +182,11 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+    <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[100] bg-black/65 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto h-[100dvh] w-screen animate-fade-in">
       
       {/* Visual Animation Overlay for Pago Realizado */}
       {showSuccessAnimation ? (
-        <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-emerald-500 w-full max-w-sm text-center flex flex-col items-center gap-4 animate-bounce-in relative overflow-hidden">
+        <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-emerald-500 w-full max-w-sm text-center flex flex-col items-center gap-4 animate-bounce-in relative overflow-hidden my-auto">
           
           {/* Floating Money Elements Animation */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -211,7 +223,7 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
         </div>
       ) : (
         /* Standard Calculator Modal Container */
-        <div className="bg-white rounded-3xl shadow-2xl border border-surface-container-low w-full max-w-sm overflow-hidden flex flex-col max-h-[92vh]">
+        <div className="bg-white rounded-3xl shadow-2xl border border-surface-container-low w-full max-w-sm overflow-hidden flex flex-col my-auto max-h-[96dvh] sm:max-h-[92vh]">
           
           {/* Header */}
           <div className="flex justify-between items-center px-6 py-4 border-b border-surface-container-highest bg-white">
