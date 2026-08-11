@@ -1,51 +1,42 @@
 import React, { useState, useMemo } from 'react';
+import { collection, doc, writeBatch, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function Contabilidad({ accountingData, inventoryData, salesData, contactsData, ordersData }) {
   const { 
     purchases = [], expenses = [], extraMovements = [], 
-    recordPurchase, updatePurchaseCategory, deletePurchase, 
+    updatePurchaseCategory, deletePurchase, 
     recordExpense, toggleExpenseStatus, deleteExpense, 
     recordExtraMovement, deleteExtraMovement 
   } = accountingData || {};
 
-  const { products = [], saveProduct } = inventoryData || {};
+  const { products = [] } = inventoryData || {};
   const { sales = [], deleteSale } = salesData || {};
 
   // Filter States for the Unified Excel Table
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('todos'); // 'todos', 'Venta', 'Compra', 'Gasto'
+  const [typeFilter, setTypeFilter] = useState('todos'); // 'todos', 'Venta', 'Gasto'
   const [categoryFilter, setCategoryFilter] = useState('todas');
   const [timeFilter, setTimeFilter] = useState('mes'); // 'hoy', 'semana', 'mes', 'todo'
 
   const [showStats, setShowStats] = useState(false);
   const [selectedTransactionDetail, setSelectedTransactionDetail] = useState(null);
 
-  // Form Modals
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [productSearchQuery, setProductSearchQuery] = useState('');
-  const [showProductDropdown, setShowProductDropdown] = useState(false);
-  const [purchaseForm, setPurchaseForm] = useState({
-    productId: '', 
-    productNombre: '', 
-    proveedor: '', 
-    cantidad: '', 
-    precioTotal: '',
-    categoria: 'Mercadería (Stock)',
-    isNewProduct: false,
-    tipoVenta: 'unidad',
-    precioVenta: '',
-    porcentajeGanancia: '50'
-  });
-
+  // Single Unified Expense Modal State ("Registrar Gasto")
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
-    concepto: '', categoria: 'Servicios', monto: '', estado: 'Pagado'
+    tipoMovimiento: 'gasto', // 'gasto' | 'ingreso_extra'
+    concepto: '', 
+    categoria: 'Servicios (Luz, Agua, Gas, Internet)', 
+    monto: '', 
+    proveedor: ''
   });
 
-  const [showExtraModal, setShowExtraModal] = useState(false);
-  const [extraForm, setExtraForm] = useState({
-    tipo: 'ingreso', concepto: '', monto: ''
-  });
+  // Database Reset Modals State (Step 1 & Step 2)
+  const [showResetModalStep1, setShowResetModalStep1] = useState(false);
+  const [showResetModalStep2, setShowResetModalStep2] = useState(false);
+  const [resetConfirmationInput, setResetConfirmationInput] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   const formatPrice = (num) => Math.round(Number(num) || 0).toLocaleString('es-AR');
 
@@ -77,7 +68,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
       });
     });
 
-    // 2. Purchases (Compras)
+    // 2. Purchases (Compras desde Inventario)
     (purchases || []).forEach(p => {
       const pDate = new Date(p.fecha);
       list.push({
@@ -97,7 +88,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
       });
     });
 
-    // 3. Gastos Fijos (Expenses)
+    // 3. Gastos (Expenses)
     (expenses || []).forEach(e => {
       const eDate = new Date(e.fecha);
       list.push({
@@ -105,11 +96,11 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
         originalId: e.id,
         rawDate: eDate,
         fechaFormatted: eDate.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        tipo: 'Gasto Fijo',
+        tipo: 'Gasto',
         tipoBadgeColor: 'bg-amber-100 text-amber-950 border-amber-300',
         tipoIcon: 'receipt_long',
         categoria: e.categoria || 'Servicios',
-        proveedorCliente: e.concepto || 'Gasto Operativo',
+        proveedorCliente: e.proveedor ? `${e.concepto} (${e.proveedor})` : e.concepto,
         monto: -(e.monto || 0),
         isIncome: false,
         recordType: 'expense',
@@ -138,7 +129,6 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
       });
     });
 
-    // Sort chronologically descending (newest first)
     return list.sort((a, b) => b.rawDate - a.rawDate);
   }, [sales, purchases, expenses, extraMovements]);
 
@@ -164,7 +154,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
       if (typeFilter !== 'todos') {
         if (typeFilter === 'Venta' && !item.isIncome) return false;
         if (typeFilter === 'Compra' && item.recordType !== 'purchase') return false;
-        if (typeFilter === 'Gasto' && item.recordType !== 'expense' && (item.recordType !== 'extra' || item.isIncome)) return false;
+        if (typeFilter === 'Gasto' && item.isIncome) return false;
       }
 
       // 3. Category Filter
@@ -189,7 +179,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
   }, [masterLedger, timeFilter, typeFilter, categoryFilter, searchTerm]);
 
   // -------------------------------------------------------------
-  // METRICS & STATS CALCULATIONS (Unified)
+  // METRICS & STATS CALCULATIONS
   // -------------------------------------------------------------
   const statsSummary = useMemo(() => {
     let ingresos = 0;
@@ -221,7 +211,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
     return { ingresos, egresos, comprasStock, comprasInsumos, gastosFijos, balance };
   }, [filteredLedger]);
 
-  // Integrated Top Selling Products Stats
+  // Top Selling Products Stats
   const topProductsStats = useMemo(() => {
     const productCounts = {};
 
@@ -285,82 +275,43 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
     document.body.removeChild(link);
   };
 
-  // Form Submissions
-  const handlePurchaseSubmit = async (e) => {
-    e.preventDefault();
-    const qty = parseFloat(purchaseForm.cantidad) || 0;
-    const total = parseFloat(purchaseForm.precioTotal) || 0;
-    if (qty <= 0 || total <= 0) {
-      alert('Por favor ingresa una cantidad y precio total válidos.');
-      return;
-    }
-
-    const unitCost = Math.round(total / qty);
-    let targetProductId = purchaseForm.productId;
-    let pNombre = purchaseForm.productNombre;
-
-    if (purchaseForm.isNewProduct || !targetProductId) {
-      if (!pNombre) {
-        alert('Por favor ingresa el nombre del producto.');
-        return;
-      }
-
-      const salePrice = parseFloat(purchaseForm.precioVenta) || Math.round(unitCost * 1.5);
-      const newProdData = {
-        nombre: pNombre,
-        tipoVenta: purchaseForm.tipoVenta || 'unidad',
-        stockActual: qty,
-        stockMinimo: 2,
-        costoPromedio: unitCost,
-        precioVenta: salePrice,
-        imagen: ''
-      };
-
-      if (inventoryData?.saveProduct) {
-        targetProductId = await inventoryData.saveProduct(newProdData);
-      }
-    }
-
-    await recordPurchase({
-      productId: targetProductId,
-      productNombre: pNombre || 'Producto Varios',
-      proveedor: purchaseForm.proveedor || 'Proveedor General',
-      cantidad: qty,
-      precioTotal: total,
-      costoUnitario: unitCost,
-      categoria: purchaseForm.categoria || 'Mercadería (Stock)'
-    });
-
-    setPurchaseForm({
-      productId: '', productNombre: '', proveedor: '', cantidad: '', precioTotal: '',
-      categoria: 'Mercadería (Stock)',
-      isNewProduct: false, tipoVenta: 'unidad', precioVenta: '', porcentajeGanancia: '50'
-    });
-    setProductSearchQuery('');
-    setShowProductDropdown(false);
-    setShowPurchaseModal(false);
-  };
-
+  // Submit Unified Expense
   const handleExpenseSubmit = async (e) => {
     e.preventDefault();
-    if (!expenseForm.concepto || parseFloat(expenseForm.monto) <= 0) {
+    const montoNum = parseFloat(expenseForm.monto) || 0;
+    if (!expenseForm.concepto || montoNum <= 0) {
       alert('Por favor ingresa un concepto y monto válido.');
       return;
     }
-    await recordExpense(expenseForm);
-    setExpenseForm({ concepto: '', categoria: 'Servicios', monto: '', estado: 'Pagado' });
-    setShowExpenseModal(false);
-  };
 
-  const handleExtraSubmit = async (e) => {
-    e.preventDefault();
-    if (!extraForm.concepto || parseFloat(extraForm.monto) <= 0) {
-      alert('Por favor ingresa un concepto y monto válido.');
-      return;
+    if (expenseForm.tipoMovimiento === 'ingreso_extra') {
+      if (recordExtraMovement) {
+        await recordExtraMovement({
+          tipo: 'ingreso',
+          concepto: expenseForm.concepto,
+          monto: montoNum
+        });
+      }
+    } else {
+      if (recordExpense) {
+        await recordExpense({
+          concepto: expenseForm.concepto,
+          categoria: expenseForm.categoria,
+          monto: montoNum,
+          proveedor: expenseForm.proveedor || '',
+          estado: 'Pagado'
+        });
+      }
     }
-    await recordExtraMovement(extraForm);
-    setExtraForm({ tipo: 'ingreso', concepto: '', monto: '' });
-    setShowExtraModal(false);
+
+    setExpenseForm({
+      tipoMovimiento: 'gasto',
+      concepto: '',
+      categoria: 'Servicios (Luz, Agua, Gas, Internet)',
+      monto: '',
+      proveedor: ''
+    });
+    setShowExpenseModal(false);
   };
 
   const handleDeleteRecord = async (item) => {
@@ -377,9 +328,77 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
     }
   };
 
-  const filteredProductsForPurchase = products.filter(p =>
-    p.nombre.toLowerCase().includes((productSearchQuery || '').toLowerCase())
-  );
+  // -------------------------------------------------------------
+  // REINICIAR BASE DE DATOS COMPLETA (DEJANDO MERCADERIAS CON STOCK EN 0)
+  // -------------------------------------------------------------
+  const handleExecuteDatabaseReset = async () => {
+    if (resetConfirmationInput.trim().toUpperCase() !== 'REINICIAR') {
+      alert('Por favor escribe la palabra "REINICIAR" para confirmar la operación.');
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      // 1. Delete Sales
+      if (sales && sales.length > 0) {
+        const batchSales = writeBatch(db);
+        sales.forEach(s => batchSales.delete(doc(db, 'sales', s.id)));
+        await batchSales.commit();
+      }
+
+      // 2. Delete Purchases
+      if (purchases && purchases.length > 0) {
+        const batchPurchases = writeBatch(db);
+        purchases.forEach(p => batchPurchases.delete(doc(db, 'purchases', p.id)));
+        await batchPurchases.commit();
+      }
+
+      // 3. Delete Expenses
+      if (expenses && expenses.length > 0) {
+        const batchExpenses = writeBatch(db);
+        expenses.forEach(e => batchExpenses.delete(doc(db, 'expenses', e.id)));
+        await batchExpenses.commit();
+      }
+
+      // 4. Delete Extra Movements
+      if (extraMovements && extraMovements.length > 0) {
+        const batchExtras = writeBatch(db);
+        extraMovements.forEach(m => batchExtras.delete(doc(db, 'extra_movements', m.id)));
+        await batchExtras.commit();
+      }
+
+      // 5. Delete Orders
+      if (ordersData?.orders && ordersData.orders.length > 0) {
+        const batchOrders = writeBatch(db);
+        ordersData.orders.forEach(o => batchOrders.delete(doc(db, 'orders', o.id)));
+        await batchOrders.commit();
+      }
+
+      // 6. Reset all Inventory Products stock to 0
+      if (products && products.length > 0) {
+        for (const p of products) {
+          if (inventoryData?.saveProduct) {
+            await inventoryData.saveProduct({
+              ...p,
+              stockActual: 0
+            });
+          } else {
+            await setDoc(doc(db, 'products', p.id), { ...p, stockActual: 0 });
+          }
+        }
+      }
+
+      alert('✅ Base de datos reiniciada con éxito. Toda la información fue borrada y los productos quedaron con stock en 0.');
+      setShowResetModalStep2(false);
+      setShowResetModalStep1(false);
+      setResetConfirmationInput('');
+    } catch (err) {
+      console.error("Error reiniciando base de datos:", err);
+      alert('Error al reiniciar la base de datos: ' + err.message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-7xl mx-auto w-full">
@@ -388,9 +407,9 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
         <div>
           <h2 className="text-2xl font-black text-on-surface tracking-tight flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-2xl">account_balance</span>
-            <span>Dashboard Contable Unificado</span>
+            <span>Dashboard Contable & Control</span>
           </h2>
-          <p className="text-xs text-secondary font-medium">Control financiero integral de Compras, Ventas, Gastos y Estadísticas</p>
+          <p className="text-xs text-secondary font-medium">Gestión unificada de ventas, gastos fijos, insumos y estadísticas del negocio</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -404,28 +423,23 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
             <span>{showStats ? 'Ocultar Stats' : '📊 Ver Stats de Productos'}</span>
           </button>
 
-          <button
-            onClick={() => setShowPurchaseModal(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
-          >
-            <span className="material-symbols-outlined text-base">shopping_bag</span>
-            <span>+ Compra Mercadería</span>
-          </button>
-
+          {/* UNIFIED GASTO BUTTON */}
           <button
             onClick={() => setShowExpenseModal(true)}
-            className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
+            className="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
           >
             <span className="material-symbols-outlined text-base">receipt_long</span>
-            <span>+ Gasto / Servicio</span>
+            <span>+ Registrar Gasto</span>
           </button>
 
+          {/* DATABASE RESET BUTTON */}
           <button
-            onClick={() => setShowExtraModal(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
+            onClick={() => setShowResetModalStep1(true)}
+            className="bg-rose-50 hover:bg-rose-100 text-error border border-rose-200 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer ml-auto sm:ml-0"
+            title="Reiniciar base de datos completa conservando productos con stock 0"
           >
-            <span className="material-symbols-outlined text-base">more_horiz</span>
-            <span>+ Movimiento Extra</span>
+            <span className="material-symbols-outlined text-base">delete_forever</span>
+            <span>⚠️ Reiniciar Base de Datos</span>
           </button>
         </div>
       </div>
@@ -454,8 +468,8 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
             <h3 className="text-3xl font-black text-on-surface">${formatPrice(statsSummary.egresos)}</h3>
           </div>
           <div className="text-[11px] text-rose-900 font-bold flex flex-wrap gap-1 mt-3">
-            <span className="bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">Stock: ${formatPrice(statsSummary.comprasStock)}</span>
-            <span className="bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Insumos/Gastos: ${formatPrice(statsSummary.comprasInsumos + statsSummary.gastosFijos)}</span>
+            <span className="bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">Stock (en Inventario): ${formatPrice(statsSummary.comprasStock)}</span>
+            <span className="bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Gastos/Servicios: ${formatPrice(statsSummary.comprasInsumos + statsSummary.gastosFijos)}</span>
           </div>
         </div>
 
@@ -531,7 +545,6 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
 
         {/* Dropdown Filters */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Time Filter */}
           <select
             className="bg-surface-container-low border border-surface-container-highest rounded-xl px-3 py-2.5 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer"
             value={timeFilter}
@@ -543,7 +556,6 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
             <option value="todo">📅 Todo el Historial</option>
           </select>
 
-          {/* Type Filter */}
           <select
             className="bg-surface-container-low border border-surface-container-highest rounded-xl px-3 py-2.5 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer"
             value={typeFilter}
@@ -552,10 +564,9 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
             <option value="todos">🏷️ Todos los Tipos</option>
             <option value="Venta">🟢 Solo Ventas</option>
             <option value="Compra">🔴 Solo Compras</option>
-            <option value="Gasto">📙 Solo Gastos / Extras</option>
+            <option value="Gasto">📙 Solo Gastos</option>
           </select>
 
-          {/* Category Filter */}
           <select
             className="bg-surface-container-low border border-surface-container-highest rounded-xl px-3 py-2.5 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer"
             value={categoryFilter}
@@ -569,10 +580,9 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
             <option value="Venta">🛒 Ventas</option>
           </select>
 
-          {/* Export to Excel CSV Button */}
           <button
             onClick={exportToCSV}
-            className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 px-3.5 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+            className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 px-3.5 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
             title="Descargar este historial en formato Excel / CSV"
           >
             <span className="material-symbols-outlined text-base text-emerald-700">download</span>
@@ -737,7 +747,6 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                 </span>
               </div>
 
-              {/* Items Breakdown if Sale */}
               {selectedTransactionDetail.recordType === 'sale' && selectedTransactionDetail.raw?.items && (
                 <div className="border-t pt-2 mt-1">
                   <span className="font-bold text-on-surface block mb-2">Desglose de Productos Vendidos:</span>
@@ -765,198 +774,14 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
         </div>
       )}
 
-      {/* Modal Registrar Compra */}
-      {showPurchaseModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <form onSubmit={handlePurchaseSubmit} className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-surface-container-highest flex flex-col gap-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-700">shopping_bag</span>
-                <span>Registrar Compra de Mercadería</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowPurchaseModal(false)}
-                className="text-secondary hover:text-on-surface font-bold text-base p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div className="relative">
-                <label className="block text-xs font-bold text-secondary mb-1">Buscar Producto o Crear Nuevo *</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 pr-8 text-sm outline-none focus:border-primary font-bold text-on-surface"
-                    placeholder="🔍 Escribir nombre del producto..."
-                    value={productSearchQuery}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setProductSearchQuery(val);
-                      setShowProductDropdown(true);
-                      setPurchaseForm(prev => ({
-                        ...prev,
-                        productId: '',
-                        productNombre: val,
-                        isNewProduct: false
-                      }));
-                    }}
-                    onFocus={() => setShowProductDropdown(true)}
-                  />
-                  {productSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProductSearchQuery('');
-                        setShowProductDropdown(false);
-                        setPurchaseForm(prev => ({
-                          ...prev,
-                          productId: '',
-                          productNombre: '',
-                          isNewProduct: false
-                        }));
-                      }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-on-surface font-bold text-xs"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                {showProductDropdown && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-surface-container-highest rounded-2xl shadow-xl z-30 max-h-60 overflow-y-auto divide-y divide-surface-container-highest">
-                    {filteredProductsForPurchase.length === 0 ? (
-                      <div className="p-3 text-xs text-secondary italic text-center">
-                        No se encontraron productos existentes con "{productSearchQuery}"
-                      </div>
-                    ) : (
-                      filteredProductsForPurchase.map(p => (
-                        <div
-                          key={p.id}
-                          onClick={() => {
-                            setPurchaseForm(prev => ({
-                              ...prev,
-                              productId: p.id,
-                              productNombre: p.nombre,
-                              isNewProduct: false
-                            }));
-                            setProductSearchQuery(`${p.nombre} (${p.tipoVenta === 'unidad' ? 'un' : p.tipoVenta})`);
-                            setShowProductDropdown(false);
-                          }}
-                          className="p-3 hover:bg-primary-container/20 cursor-pointer flex justify-between items-center text-sm font-semibold transition-colors"
-                        >
-                          <span className="font-bold text-on-surface">{p.nombre}</span>
-                          <span className="text-xs bg-surface-container-high px-2 py-0.5 rounded-md text-secondary font-bold">
-                            {p.tipoVenta} • Stock: {p.stockActual}
-                          </span>
-                        </div>
-                      ))
-                    )}
-
-                    <div
-                      onClick={() => {
-                        const newName = productSearchQuery.trim() || 'Nuevo Producto';
-                        setPurchaseForm(prev => ({
-                          ...prev,
-                          productId: '',
-                          productNombre: newName,
-                          isNewProduct: true
-                        }));
-                        setProductSearchQuery(newName);
-                        setShowProductDropdown(false);
-                      }}
-                      className="p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 cursor-pointer flex items-center gap-2 text-xs font-extrabold transition-colors border-t border-emerald-200"
-                    >
-                      <span className="material-symbols-outlined text-base text-emerald-700">add_circle</span>
-                      <span>✨ + Crear "{productSearchQuery || 'Nuevo Producto'}" como NUEVO producto en inventario</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Proveedor / Distribuidora</label>
-                <input
-                  type="text"
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
-                  placeholder="Ej: Huerta San José / Mercado Abasto"
-                  value={purchaseForm.proveedor}
-                  onChange={e => setPurchaseForm({ ...purchaseForm, proveedor: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-bold text-secondary mb-1">Cantidad Comprada *</label>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
-                    placeholder="Ej: 10"
-                    value={purchaseForm.cantidad}
-                    onChange={e => setPurchaseForm({ ...purchaseForm, cantidad: e.target.value })}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-amber-900 mb-1">Precio TOTAL Pagado ($) *</label>
-                  <input
-                    type="number"
-                    required
-                    className="w-full bg-amber-50 border border-amber-300 rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-amber-950"
-                    placeholder="Ej: 15000"
-                    value={purchaseForm.precioTotal}
-                    onChange={e => setPurchaseForm({ ...purchaseForm, precioTotal: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Categoría de la Compra</label>
-                <select
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-xs outline-none focus:border-primary font-bold text-on-surface"
-                  value={purchaseForm.categoria}
-                  onChange={e => setPurchaseForm({ ...purchaseForm, categoria: e.target.value })}
-                >
-                  <option value="📦 Mercadería (Stock)">📦 Mercadería (Stock - Suma al Inventario)</option>
-                  <option value="🛍️ Insumos / Embalaje (Bolsas, Cinta, Film)">🛍️ Insumos / Embalaje (Bolsas, Cinta, Film)</option>
-                  <option value="🛒 Gastos Extras">🛒 Gastos Extras</option>
-                  <option value="💡 Servicios / Alquiler">💡 Servicios / Alquiler</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="border-t pt-3 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowPurchaseModal(false)}
-                className="px-4 py-2 rounded-xl text-secondary hover:bg-surface-container-low text-xs font-semibold"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm"
-              >
-                Guardar Compra
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Modal Registrar Gasto / Servicio */}
+      {/* UNIFIED GASTO / SERVICIO / EXTRA MODAL */}
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
           <form onSubmit={handleExpenseSubmit} className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-surface-container-highest flex flex-col gap-4">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
                 <span className="material-symbols-outlined text-amber-700">receipt_long</span>
-                <span>Registrar Gasto o Servicio</span>
+                <span>Registrar Gasto o Movimiento</span>
               </h3>
               <button
                 type="button"
@@ -969,30 +794,57 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
 
             <div className="flex flex-col gap-3">
               <div>
+                <label className="block text-xs font-bold text-secondary mb-1">Tipo de Movimiento</label>
+                <select
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-xs outline-none focus:border-primary font-bold text-on-surface"
+                  value={expenseForm.tipoMovimiento}
+                  onChange={e => setExpenseForm({ ...expenseForm, tipoMovimiento: e.target.value })}
+                >
+                  <option value="gasto">🔴 Registrar Gasto / Egreso de Dinero</option>
+                  <option value="ingreso_extra">🟢 Registrar Ingreso Extra</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-secondary mb-1">Concepto / Nombre del Gasto *</label>
                 <input
                   type="text"
                   required
                   className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
-                  placeholder="Ej: Edesur - Luz del Local / Alquiler"
+                  placeholder="Ej: Edesur Luz / Bolsas de Plástico / Alquiler"
                   value={expenseForm.concepto}
                   onChange={e => setExpenseForm({ ...expenseForm, concepto: e.target.value })}
                 />
               </div>
 
+              {expenseForm.tipoMovimiento === 'gasto' && (
+                <div>
+                  <label className="block text-xs font-bold text-secondary mb-1">Categoría del Gasto</label>
+                  <select
+                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-xs outline-none focus:border-primary font-bold text-on-surface"
+                    value={expenseForm.categoria}
+                    onChange={e => setExpenseForm({ ...expenseForm, categoria: e.target.value })}
+                  >
+                    <option value="Servicios (Luz, Agua, Gas, Internet)">💡 Servicios (Luz, Agua, Gas, Internet)</option>
+                    <option value="Alquiler">🏢 Alquiler</option>
+                    <option value="Sueldos / Personal">👥 Sueldos / Personal</option>
+                    <option value="Insumos / Embalaje (Bolsas, Cinta, Film)">🛍️ Insumos / Embalaje (Bolsas, Cinta, Film)</option>
+                    <option value="Gastos Varios / Extras">🛒 Gastos Varios / Extras</option>
+                    <option value="Impuestos / Tasas">🏛️ Impuestos / Tasas</option>
+                    <option value="Mantenimiento / Reparaciones">🔧 Mantenimiento / Reparaciones</option>
+                  </select>
+                </div>
+              )}
+
               <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Categoría</label>
-                <select
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-xs outline-none focus:border-primary font-bold text-on-surface"
-                  value={expenseForm.categoria}
-                  onChange={e => setExpenseForm({ ...expenseForm, categoria: e.target.value })}
-                >
-                  <option value="Servicios">💡 Servicios (Luz, Agua, Gas, Internet)</option>
-                  <option value="Alquiler">🏢 Alquiler</option>
-                  <option value="Sueldos">👥 Sueldos / Personal</option>
-                  <option value="Impuestos">🏛️ Impuestos / Tasas</option>
-                  <option value="Mantenimiento">🔧 Mantenimiento / Reparaciones</option>
-                </select>
+                <label className="block text-xs font-bold text-secondary mb-1">Proveedor / Entidad (Opcional)</label>
+                <input
+                  type="text"
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
+                  placeholder="Ej: Edesur / Distribuidora X"
+                  value={expenseForm.proveedor}
+                  onChange={e => setExpenseForm({ ...expenseForm, proveedor: e.target.value })}
+                />
               </div>
 
               <div>
@@ -1018,7 +870,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm"
+                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm cursor-pointer"
               >
                 Guardar Gasto
               </button>
@@ -1027,78 +879,119 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
         </div>
       )}
 
-      {/* Modal Movimiento Extra */}
-      {showExtraModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <form onSubmit={handleExtraSubmit} className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-surface-container-highest flex flex-col gap-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
-                <span className="material-symbols-outlined text-purple-700">more_horiz</span>
-                <span>Registrar Movimiento Extra</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowExtraModal(false)}
-                className="text-secondary hover:text-on-surface font-bold text-base p-1"
-              >
-                ✕
-              </button>
+      {/* DATABASE RESET MODAL STEP 1 (Paso 1: Advertencia Inicial) */}
+      {showResetModalStep1 && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border-4 border-amber-500 flex flex-col gap-4">
+            <div className="flex justify-between items-start border-b pb-3">
+              <div>
+                <span className="text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-md">
+                  PASO 1 DE 2
+                </span>
+                <h3 className="text-xl font-black text-amber-950 mt-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-600 text-2xl">warning</span>
+                  <span>¿Reiniciar Base de Datos Completa?</span>
+                </h3>
+              </div>
+              <button onClick={() => setShowResetModalStep1(false)} className="text-secondary font-bold p-1">✕</button>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Tipo de Movimiento</label>
-                <select
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-xs outline-none focus:border-primary font-bold text-on-surface"
-                  value={extraForm.tipo}
-                  onChange={e => setExtraForm({ ...extraForm, tipo: e.target.value })}
-                >
-                  <option value="ingreso">🟢 Ingreso Extra</option>
-                  <option value="gasto">🔴 Gasto Extra</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Concepto / Descripción *</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
-                  placeholder="Ej: Aporte inicial de caja / Venta de pallet usado"
-                  value={extraForm.concepto}
-                  onChange={e => setExtraForm({ ...extraForm, concepto: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Monto ($) *</label>
-                <input
-                  type="number"
-                  required
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
-                  placeholder="Ej: 5000"
-                  value={extraForm.monto}
-                  onChange={e => setExtraForm({ ...extraForm, monto: e.target.value })}
-                />
-              </div>
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-amber-950 text-xs font-semibold space-y-2">
+              <p className="font-bold text-sm text-amber-900">⚠️ ADVERTENCIA DE BORRADO DE DATOS:</p>
+              <p>Al confirmar este proceso, se eliminarán **PERMANENTEMENTE**:</p>
+              <ul className="list-disc list-inside space-y-1 font-bold">
+                <li>Todo el historial de Ventas y Tickets de Caja</li>
+                <li>Todas las Compras registradas</li>
+                <li>Todos los Gastos y Movimientos Extras</li>
+                <li>Todos los Pedidos de Delivery</li>
+              </ul>
+              <p className="pt-1 text-emerald-900 font-extrabold">
+                📌 **Los Productos en Inventario NO se borrarán**, pero el stock actual de CADA uno se pondrá automáticamente en **0 (CERO)**.
+              </p>
             </div>
 
-            <div className="border-t pt-3 flex justify-end gap-2">
+            <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setShowExtraModal(false)}
-                className="px-4 py-2 rounded-xl text-secondary hover:bg-surface-container-low text-xs font-semibold"
+                onClick={() => setShowResetModalStep1(false)}
+                className="px-4 py-2.5 rounded-xl border border-surface-container-highest text-secondary font-bold text-xs"
               >
                 Cancelar
               </button>
               <button
-                type="submit"
-                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm"
+                type="button"
+                onClick={() => {
+                  setShowResetModalStep1(false);
+                  setShowResetModalStep2(true);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md"
               >
-                Guardar Movimiento
+                Entendido, ir al Paso 2 ➔
               </button>
             </div>
-          </form>
+          </div>
+        </div>
+      )}
+
+      {/* DATABASE RESET MODAL STEP 2 (Paso 2: Advertencia Final y Confirmacion con Escribir) */}
+      {showResetModalStep2 && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border-4 border-rose-600 flex flex-col gap-4">
+            <div className="flex justify-between items-start border-b pb-3">
+              <div>
+                <span className="text-xs font-black bg-rose-100 text-rose-900 border border-rose-300 px-2.5 py-0.5 rounded-md">
+                  PASO 2 DE 2 (CONFIRMACIÓN FINAL)
+                </span>
+                <h3 className="text-xl font-black text-rose-950 mt-1 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-rose-600 text-2xl">dangerous</span>
+                  <span>🚨 ADVERTENCIA FINAL: Confirmar borrado</span>
+                </h3>
+              </div>
+              <button onClick={() => setShowResetModalStep2(false)} className="text-secondary font-bold p-1">✕</button>
+            </div>
+
+            <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl text-rose-950 text-xs font-semibold space-y-2">
+              <p className="font-bold text-sm text-rose-900">🚨 ESTA ACCIÓN NO SE PUEDE DESHACER.</p>
+              <p>Escribe la palabra <strong className="text-rose-700 uppercase underline font-black">REINICIAR</strong> en el cuadro inferior para habilitar la eliminación completa.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-secondary mb-1">Escribe "REINICIAR" para confirmar *</label>
+              <input
+                type="text"
+                className="w-full bg-surface-container-low border border-rose-300 rounded-xl p-3 text-sm font-black uppercase text-rose-900 outline-none focus:border-rose-600"
+                placeholder="REINICIAR"
+                value={resetConfirmationInput}
+                onChange={e => setResetConfirmationInput(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetModalStep2(false);
+                  setResetConfirmationInput('');
+                }}
+                className="px-4 py-2.5 rounded-xl border border-surface-container-highest text-secondary font-bold text-xs"
+              >
+                Cancelar y Salvar Datos
+              </button>
+              <button
+                type="button"
+                disabled={resetConfirmationInput.trim().toUpperCase() !== 'REINICIAR' || isResetting}
+                onClick={handleExecuteDatabaseReset}
+                className={`px-5 py-2.5 rounded-xl font-black text-xs shadow-md transition-all flex items-center gap-1.5 ${
+                  resetConfirmationInput.trim().toUpperCase() === 'REINICIAR' && !isResetting
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white cursor-pointer active:scale-95'
+                    : 'bg-surface-container-high text-secondary cursor-not-allowed opacity-50'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">delete_forever</span>
+                <span>{isResetting ? 'Borrando...' : '💣 BORRAR TODO Y PONER STOCK EN 0'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
