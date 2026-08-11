@@ -1017,16 +1017,6 @@ export default function Inventory({ inventoryData, accountingData }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Top Button to Add Purchase / Stock */}
-          <button
-            onClick={handleOpenAddStockTop}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
-            title="Cargar compra de mercadería al inventario"
-          >
-            <span className="material-symbols-outlined text-base">add_shopping_cart</span>
-            <span>+ Cargar Compra</span>
-          </button>
-
           {/* Button to Add New Product */}
           <button
             onClick={handleAddNew}
