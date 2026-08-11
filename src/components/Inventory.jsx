@@ -1240,8 +1240,8 @@ export default function Inventory({ inventoryData, accountingData }) {
                     </div>
                   </div>
 
-                  {/* PROMINENT "+ CARGAR COMPRA" BUTTON & ACTIONS */}
-                  <div className="col-span-1 md:col-span-2 flex justify-end items-center gap-1.5 mt-2 md:mt-0">
+                  {/* PROMINENT ACTION BUTTONS: + CARGAR COMPRA, MERMA, EDITAR, ELIMINAR */}
+                  <div className="col-span-1 md:col-span-2 flex justify-end items-center gap-1.5 mt-2 md:mt-0 flex-wrap">
                     <button
                       type="button"
                       onClick={(e) => handleOpenAddStockForProduct(p, e)}
@@ -1249,7 +1249,23 @@ export default function Inventory({ inventoryData, accountingData }) {
                       title="Cargar una nueva compra para este producto"
                     >
                       <span className="material-symbols-outlined text-xs">add_shopping_cart</span>
-                      <span>+ Cargar Compra</span>
+                      <span>+ Compra</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        if (e) e.stopPropagation();
+                        scrollPosRef.current = window.scrollY;
+                        setSelectedProduct(p);
+                        setMermaForm({ quantity: '', motive: '' });
+                        setView('merma');
+                      }}
+                      className="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded-xl font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+                      title="Registrar merma / pérdida de este producto"
+                    >
+                      <span className="material-symbols-outlined text-xs">remove_shopping_cart</span>
+                      <span>Merma</span>
                     </button>
 
                     <button
