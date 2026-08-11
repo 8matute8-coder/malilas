@@ -955,6 +955,32 @@ export default function Inventory({ inventoryData, accountingData }) {
 
   const sortedProducts = [...filteredProducts].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
+  // Export Inventory Control List for Manual Count (Excel / CSV)
+  const handleExportInventoryControlCSV = () => {
+    if (sortedProducts.length === 0) {
+      alert('No hay productos en el inventario para exportar.');
+      return;
+    }
+
+    const headers = ['Nombre de Producto', 'Precio', 'Stock Actual', 'Control'];
+
+    const rows = sortedProducts.map(p => [
+      `"${(p.nombre || '').replace(/"/g, '""')}"`,
+      `"$${formatPrice(p.precioVenta)} / ${p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}"`,
+      `"${formatQuantity(p.stockActual)} ${p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}"`,
+      '""' // Columna vacia vaciada intencionalmente para imprimir y anotar el conteo fisico a mano
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Control_Inventario_LaMalila_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex flex-col gap-6 animate-fade-in w-full">
       {/* Financial Valuation Summary Banner */}
@@ -1010,13 +1036,24 @@ export default function Inventory({ inventoryData, accountingData }) {
           />
         </div>
 
-        <button
-          onClick={handleAddNew}
-          className="bg-primary hover:bg-surface-tint text-white px-6 py-3 rounded-2xl font-black text-xs shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-lg">add_circle</span>
-          <span>+ Nuevo Producto</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleExportInventoryControlCSV}
+            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 px-4 py-2.5 rounded-2xl font-extrabold text-xs transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-2xs"
+            title="Descargar planilla de control para imprimir y anotar conteo físico a mano"
+          >
+            <span className="material-symbols-outlined text-emerald-700 text-lg">description</span>
+            <span>📊 Exportar Planilla de Control (Excel)</span>
+          </button>
+
+          <button
+            onClick={handleAddNew}
+            className="bg-primary hover:bg-surface-tint text-white px-5 py-2.5 rounded-2xl font-black text-xs shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-lg">add_circle</span>
+            <span>+ Nuevo Producto</span>
+          </button>
+        </div>
       </div>
 
       {/* PRODUCST CONTAINER (Structured Cards for Mobile, Grid for Desktop) */}
