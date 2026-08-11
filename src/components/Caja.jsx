@@ -195,17 +195,23 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
           <p className="text-xs text-secondary">Ingreso rápido directo desde catálogo o con calculadora dinámicas</p>
         </div>
 
-        {/* Action Button: Abrir Calculadora de Venta Rápida por Monto */}
+        {/* Action Button: Abrir/Ocultar Calculadora Desplegable hacia abajo */}
         <button
-          onClick={() => setShowCalculator(true)}
-          className="w-full sm:w-auto bg-gradient-to-r from-emerald-700 to-emerald-600 hover:from-emerald-800 hover:to-emerald-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+          onClick={() => setShowCalculator(prev => !prev)}
+          className={`w-full sm:w-auto font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer ${
+            showCalculator 
+              ? 'bg-emerald-950 text-emerald-300 border border-emerald-700' 
+              : 'bg-gradient-to-r from-emerald-700 to-emerald-600 hover:from-emerald-800 hover:to-emerald-700 text-white'
+          }`}
         >
-          <span className="material-symbols-outlined text-lg">point_of_sale</span>
-          <span>⚡ Calculadora de Venta Rápida</span>
+          <span className="material-symbols-outlined text-lg">
+            {showCalculator ? 'expand_less' : 'point_of_sale'}
+          </span>
+          <span>{showCalculator ? '▲ Ocultar Calculadora' : '⚡ Calculadora de Venta Rápida'}</span>
         </button>
       </div>
 
-      {/* POS Calculator Modal */}
+      {/* POS Calculator Accordion (Desplegable que se desenrosca hacia abajo) */}
       <CalculadoraCajaModal
         isOpen={showCalculator}
         onClose={() => setShowCalculator(false)}
