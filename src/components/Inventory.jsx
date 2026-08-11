@@ -235,25 +235,44 @@ export default function Inventory({ inventoryData, accountingData }) {
     return isNaN(parsed) ? 0 : parsed;
   };
 
-  const submitForm = (e) => {
+  const submitForm = async (e) => {
     e.preventDefault();
-    saveProduct({
+    const isNew = !selectedProduct?.id;
+    const initialStock = parseInput(formData.stockActual);
+    const initialCost = Math.round(parseInput(formData.costoPromedio));
+    const initialTotalP = parseInput(formData.precioTotalCompra) || Math.round(initialStock * initialCost);
+
+    const savedId = await saveProduct({
       id: selectedProduct?.id,
       nombre: formData.nombre,
       precioVenta: Math.round(parseInput(formData.precioVenta)),
-      costoPromedio: Math.round(parseInput(formData.costoPromedio)),
+      costoPromedio: initialCost,
       tipoVenta: formData.tipoVenta,
-      stockActual: parseInput(formData.stockActual),
+      stockActual: initialStock,
       stockMinimo: parseInput(formData.stockMinimo),
       imagen: formData.imagen || '',
       esOferta: Boolean(formData.esOferta),
       precioOferta: formData.esOferta ? Math.round(parseInput(formData.precioOferta)) : 0,
       cantidadOferta: formData.esOferta ? parseInput(formData.cantidadOferta) : 0
     });
+
+    // Si es un producto NUEVO con stock inicial > 0, registrar la compra automáticamente en Compras
+    if (isNew && initialStock > 0 && accountingData?.recordPurchase) {
+      await accountingData.recordPurchase({
+        productId: savedId || selectedProduct?.id,
+        productNombre: formData.nombre,
+        proveedor: formData.proveedor || 'Proveedor General',
+        cantidad: initialStock,
+        precioTotal: initialTotalP,
+        costoUnitario: initialCost,
+        categoria: 'Mercadería (Stock)'
+      });
+    }
+
     setView('list');
   };
 
-  const submitStock = (e) => {
+  const submitStock = async (e) => {
     e.preventDefault();
     const qty = parseInput(stockForm.quantity);
     let unitCost = parseInput(stockForm.cost);
@@ -263,7 +282,25 @@ export default function Inventory({ inventoryData, accountingData }) {
       unitCost = Math.round(totalPrice / qty);
     }
 
-    addStock(selectedProduct.id, qty, Math.round(unitCost));
+    const finalUnitCost = Math.round(unitCost);
+    const finalTotalPrice = totalPrice > 0 ? totalPrice : Math.round(qty * finalUnitCost);
+
+    await addStock(selectedProduct.id, qty, finalUnitCost);
+
+    // Impactar automáticamente en el módulo de Compras
+    if (accountingData?.recordPurchase) {
+      await accountingData.recordPurchase({
+        productId: selectedProduct.id,
+        productNombre: selectedProduct.nombre,
+        proveedor: stockForm.proveedor || 'Proveedor General',
+        cantidad: qty,
+        precioTotal: finalTotalPrice,
+        costoUnitario: finalUnitCost,
+        categoria: 'Mercadería (Stock)'
+      });
+    }
+
+    setStockForm({ quantity: '', totalPrice: '', cost: '', proveedor: '' });
     setView('list');
   };
 
@@ -343,13 +380,52 @@ export default function Inventory({ inventoryData, accountingData }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-secondary mb-1">Stock Actual</label>
-              <input required className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary" value={formData.stockActual} onChange={e => setFormData({...formData, stockActual: e.target.value})} placeholder="0" />
+              <input required className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold" value={formData.stockActual} onChange={e => setFormData({...formData, stockActual: e.target.value})} placeholder="0" />
             </div>
             <div>
               <label className="block text-xs font-bold text-secondary mb-1">Stock Mínimo (Alerta)</label>
-              <input required className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary" value={formData.stockMinimo} onChange={e => setFormData({...formData, stockMinimo: e.target.value})} placeholder="0" />
+              <input required className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold" value={formData.stockMinimo} onChange={e => setFormData({...formData, stockMinimo: e.target.value})} placeholder="0" />
             </div>
           </div>
+
+          {!selectedProduct && (
+            <div className="bg-emerald-50/90 border border-emerald-200 p-3.5 rounded-2xl flex flex-col gap-2.5 animate-fade-in shadow-2xs">
+              <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-base text-emerald-700">sync_alt</span>
+                <span>Registro de Compra Inicial (Impactará en Compras y Contabilidad)</span>
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-secondary mb-1">Proveedor / Distribuidora</label>
+                  <input
+                    type="text"
+                    className="w-full bg-white border border-surface-container-highest rounded-xl p-2.5 text-xs font-bold outline-none focus:border-primary"
+                    placeholder="Ej: Huerta San José / Mercado Abasto"
+                    value={formData.proveedor || ''}
+                    onChange={e => setFormData({ ...formData, proveedor: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-amber-900 mb-1">Precio TOTAL Pagado por la Compra ($)</label>
+                  <input
+                    type="number"
+                    className="w-full bg-amber-50 border border-amber-300 rounded-xl p-2.5 text-xs font-bold text-amber-950 outline-none focus:border-primary"
+                    placeholder="Ej: 15000"
+                    value={formData.precioTotalCompra || ''}
+                    onChange={e => {
+                      const tp = e.target.value;
+                      const st = parseInput(formData.stockActual);
+                      let newCost = formData.costoPromedio;
+                      if (st > 0 && parseFloat(tp) > 0) {
+                        newCost = Math.round(parseFloat(tp) / st).toString();
+                      }
+                      setFormData({ ...formData, precioTotalCompra: tp, costoPromedio: newCost });
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Image Uploader & Preview */}
           <div>
@@ -476,6 +552,20 @@ export default function Inventory({ inventoryData, accountingData }) {
         <p className="text-primary font-bold text-base mb-4">{selectedProduct?.nombre}</p>
 
         <form onSubmit={submitStock} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-bold text-secondary mb-1">
+              Proveedor / Distribuidora
+            </label>
+            <input 
+              type="text"
+              className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-on-surface" 
+              value={stockForm.proveedor || ''} 
+              onChange={e => setStockForm({ ...stockForm, proveedor: e.target.value })} 
+              placeholder="Ej: Huerta San José / Mercado Abasto" 
+            />
+            <span className="text-[10px] text-secondary">Impactará automáticamente esta compra en el módulo de Compras</span>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-secondary mb-1">
               Cantidad Comprada ({selectedProduct?.tipoVenta === 'grs' ? 'Gramos' : selectedProduct?.tipoVenta === 'unidad' ? 'Unidades' : 'Kilos'}) *
