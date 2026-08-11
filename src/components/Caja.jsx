@@ -17,9 +17,6 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
     }
   });
 
-  // State for Stock Warning Confirmation Modal
-  const [stockWarningData, setStockWarningData] = useState(null);
-
   const handleConfirmQuickCalculatorSale = (totalAcumulado, breakdownList) => {
     if (recordSale) {
       const itemsFormatted = [{
@@ -119,74 +116,42 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
     setCart(cart.filter(item => item.product.id !== productId));
   };
 
-  // Helper Function: Check if any cart item exceeds available stock in inventory
-  const checkStockAndProceed = (onProceed) => {
-    const insufficientItems = [];
-
-    cart.forEach(item => {
-      const liveProd = products.find(p => p.id === item.product.id);
-      const availableStock = liveProd ? (liveProd.stockActual || 0) : (item.product.stockActual || 0);
-      const requestedQty = parseFloat(item.quantity) || 0;
-
-      if (requestedQty > availableStock) {
-        insufficientItems.push({
-          product: liveProd || item.product,
-          currentStock: availableStock,
-          requestedQty: requestedQty,
-          shortage: requestedQty - availableStock
-        });
-      }
-    });
-
-    if (insufficientItems.length > 0) {
-      setStockWarningData({
-        items: insufficientItems,
-        onConfirm: onProceed
-      });
-    } else {
-      onProceed();
-    }
-  };
-
+  // Direct Sale Confirmation with 0 Popup Modals
   const handleConfirmSale = () => {
     if (cart.length === 0) return;
     
-    checkStockAndProceed(() => {
-      processSale(cart);
-      
-      if (recordSale) {
-        recordSale(cart, finalTotal, 'Local');
-      }
+    processSale(cart);
+    
+    if (recordSale) {
+      recordSale(cart, finalTotal, 'Local');
+    }
 
-      setCart([]);
-      setIsManualOverride(false);
-      setManualTotal('');
-      alert('¡Venta confirmada exitosamente!');
-    });
+    setCart([]);
+    setIsManualOverride(false);
+    setManualTotal('');
+    alert('¡Venta confirmada exitosamente!');
   };
 
   const handleCreateDelivery = (e) => {
     e.preventDefault();
     if (cart.length === 0 || !addOrder) return;
 
-    checkStockAndProceed(() => {
-      addOrder({
-        cliente: deliveryForm.cliente,
-        direccion: deliveryForm.direccion,
-        telefono: deliveryForm.telefono,
-        items: cart,
-        total: finalTotal
-      });
-      
-      processSale(cart);
-      
-      setCart([]);
-      setIsManualOverride(false);
-      setManualTotal('');
-      setShowDeliveryModal(false);
-      setDeliveryForm({ cliente: '', direccion: '', telefono: '' });
-      alert('¡Pedido de Delivery creado con éxito!');
+    addOrder({
+      cliente: deliveryForm.cliente,
+      direccion: deliveryForm.direccion,
+      telefono: deliveryForm.telefono,
+      items: cart,
+      total: finalTotal
     });
+    
+    processSale(cart);
+    
+    setCart([]);
+    setIsManualOverride(false);
+    setManualTotal('');
+    setShowDeliveryModal(false);
+    setDeliveryForm({ cliente: '', direccion: '', telefono: '' });
+    alert('¡Pedido de Delivery creado con éxito!');
   };
 
   const filteredProducts = products
@@ -247,77 +212,6 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
         onConfirmSale={handleConfirmQuickCalculatorSale}
       />
 
-      {/* STOCK WARNING MODAL */}
-      {stockWarningData && (
-        <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[150] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl border-4 border-amber-400 w-full max-w-md text-left flex flex-col gap-4 animate-bounce-in my-auto">
-            <div className="flex items-center gap-3 border-b border-amber-200 pb-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 shadow-2xs">
-                <span className="material-symbols-outlined text-3xl">warning</span>
-              </div>
-              <div>
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px] uppercase border border-amber-300">
-                  ⚠️ Atención: Control de Stock
-                </span>
-                <h3 className="text-lg font-black text-on-surface leading-tight mt-0.5">
-                  Stock Insuficiente en Venta
-                </h3>
-              </div>
-            </div>
-
-            <p className="text-xs font-semibold text-secondary">
-              Los siguientes productos superan la cantidad disponible registrada en el inventario:
-            </p>
-
-            <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-3.5 space-y-2 max-h-48 overflow-y-auto">
-              {stockWarningData.items.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center text-xs bg-white p-2.5 rounded-xl border border-amber-200/80 shadow-2xs">
-                  <div>
-                    <span className="font-extrabold text-on-surface block">{item.product.nombre}</span>
-                    <span className="text-[11px] text-amber-900 font-bold">
-                      Stock actual: {formatQuantity(item.currentStock)} {item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-black text-error block text-sm">
-                      Vendes: {formatQuantity(item.requestedQty)} {item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}
-                    </span>
-                    <span className="text-[10px] font-bold text-error bg-error-container/40 px-1.5 py-0.5 rounded-md">
-                      Faltan: {formatQuantity(item.shortage)} {item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-xs font-bold text-on-surface text-center">
-              ¿Deseas continuar y registrar la venta de todas formas?
-            </p>
-
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => setStockWarningData(null)}
-                className="w-full py-3 rounded-xl border border-surface-container-highest text-secondary font-bold text-xs hover:bg-surface-container-low transition-colors cursor-pointer"
-              >
-                ❌ Cancelar Venta
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const callback = stockWarningData.onConfirm;
-                  setStockWarningData(null);
-                  callback();
-                }}
-                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1"
-              >
-                <span>⚠️ Vender de todas formas</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* POS Main Grid: Ticket Panel + Catalog Search */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
         
@@ -353,94 +247,118 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
               <p className="text-secondary text-center py-6">Selecciona un producto a la derecha para añadirlo al ticket.</p>
             ) : (
               <div className="flex flex-col gap-3">
-                {cart.map(item => (
-                  <div key={item.product.id} className="bg-surface-container-low p-3.5 rounded-xl border border-surface-container-highest flex flex-col gap-2.5">
-                    {/* Top Row: Name + Remove */}
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="min-w-0 flex-grow">
-                        <h4 className="font-bold text-on-surface text-base truncate">{item.product.nombre}</h4>
-                        <p className="text-xs text-secondary">
-                          ${formatPrice(item.product.precioVenta)} / {item.product.tipoVenta === 'grs' ? '100g' : item.product.tipoVenta}
-                        </p>
+                {cart.map(item => {
+                  const liveProd = products.find(p => p.id === item.product.id);
+                  const availableStock = liveProd ? (liveProd.stockActual || 0) : (item.product.stockActual || 0);
+                  const isInsufficientStock = item.quantity > availableStock;
+
+                  return (
+                    <div 
+                      key={item.product.id} 
+                      className={`p-3.5 rounded-xl border flex flex-col gap-2.5 transition-colors ${
+                        isInsufficientStock 
+                          ? 'bg-amber-50/80 border-amber-300' 
+                          : 'bg-surface-container-low border-surface-container-highest'
+                      }`}
+                    >
+                      {/* Top Row: Name + Remove */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0 flex-grow">
+                          <h4 className="font-bold text-on-surface text-base truncate">{item.product.nombre}</h4>
+                          <p className="text-xs text-secondary">
+                            ${formatPrice(item.product.precioVenta)} / {item.product.tipoVenta === 'grs' ? '100g' : item.product.tipoVenta}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold text-primary text-lg">${formatPrice(getItemPrice(item))}</span>
+                          <button 
+                            className="text-error hover:bg-error-container/30 p-1.5 rounded-full transition-colors"
+                            onClick={() => removeFromCart(item.product.id)}
+                            title="Eliminar del ticket"
+                          >
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-bold text-primary text-lg">${formatPrice(getItemPrice(item))}</span>
-                        <button 
-                          className="text-error hover:bg-error-container/30 p-1.5 rounded-full transition-colors"
-                          onClick={() => removeFromCart(item.product.id)}
-                          title="Eliminar del ticket"
-                        >
-                          <span className="material-symbols-outlined text-lg">delete</span>
-                        </button>
+
+                      {/* INLINE STOCK WARNING NOTICE INSIDE TICKET ITEM */}
+                      {isInsufficientStock && (
+                        <div className="bg-amber-100/90 text-amber-950 px-2.5 py-1 rounded-lg border border-amber-300 text-[11px] font-bold flex items-center justify-between shadow-2xs">
+                          <span className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs text-amber-800">warning</span>
+                            <span>Stock insuficiente: Quedan {formatQuantity(availableStock)} {item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}</span>
+                          </span>
+                          <span className="text-error font-black">Faltan: {formatQuantity(item.quantity - availableStock)}</span>
+                        </div>
+                      )}
+
+                      {/* Quantity Controls & Cumulative Presets */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-surface-container-highest">
+                        {/* Accumulator Presets */}
+                        <div className="flex gap-1 overflow-x-auto no-scrollbar items-center">
+                          <span className="text-[10px] font-bold text-secondary mr-1">Sumar:</span>
+                          {item.product.tipoVenta === 'kg' && [
+                            { label: '+1/4', val: 0.25 },
+                            { label: '+1/2', val: 0.5 },
+                            { label: '+1kg', val: 1.0 }
+                          ].map(preset => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => addPresetToItem(item.product.id, preset.val)}
+                              className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+
+                          {item.product.tipoVenta === 'grs' && [
+                            { label: '+100g', val: 100 },
+                            { label: '+250g', val: 250 },
+                            { label: '+500g', val: 500 }
+                          ].map(preset => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => addPresetToItem(item.product.id, preset.val)}
+                              className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+
+                          {item.product.tipoVenta === 'unidad' && [
+                            { label: '+1', val: 1 },
+                            { label: '+2', val: 2 },
+                            { label: '+6', val: 6 }
+                          ].map(preset => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => addPresetToItem(item.product.id, preset.val)}
+                              className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Manual Input Quantity */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-secondary font-medium">Cant:</span>
+                          <input
+                            type="number"
+                            step="any"
+                            className="w-16 bg-white border border-surface-container-highest rounded-lg p-1 text-center font-bold text-sm text-on-surface outline-none focus:border-primary"
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.product.id, parseFloat(e.target.value) || 0)}
+                          />
+                          <span className="text-xs text-secondary font-medium">{item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}</span>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Quantity Controls & Cumulative Presets */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-surface-container-highest">
-                      {/* Accumulator Presets */}
-                      <div className="flex gap-1 overflow-x-auto no-scrollbar items-center">
-                        <span className="text-[10px] font-bold text-secondary mr-1">Sumar:</span>
-                        {item.product.tipoVenta === 'kg' && [
-                          { label: '+1/4', val: 0.25 },
-                          { label: '+1/2', val: 0.5 },
-                          { label: '+1kg', val: 1.0 }
-                        ].map(preset => (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => addPresetToItem(item.product.id, preset.val)}
-                            className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-
-                        {item.product.tipoVenta === 'grs' && [
-                          { label: '+100g', val: 100 },
-                          { label: '+250g', val: 250 },
-                          { label: '+500g', val: 500 }
-                        ].map(preset => (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => addPresetToItem(item.product.id, preset.val)}
-                            className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-
-                        {item.product.tipoVenta === 'unidad' && [
-                          { label: '+1', val: 1 },
-                          { label: '+2', val: 2 },
-                          { label: '+6', val: 6 }
-                        ].map(preset => (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => addPresetToItem(item.product.id, preset.val)}
-                            className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Manual Input Quantity */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-secondary font-medium">Cant:</span>
-                        <input
-                          type="number"
-                          step="any"
-                          className="w-16 bg-white border border-surface-container-highest rounded-lg p-1 text-center font-bold text-sm text-on-surface outline-none focus:border-primary"
-                          value={item.quantity}
-                          onChange={(e) => updateQuantity(item.product.id, parseFloat(e.target.value) || 0)}
-                        />
-                        <span className="text-xs text-secondary font-medium">{item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
