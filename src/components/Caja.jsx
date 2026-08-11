@@ -16,6 +16,9 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
     }
   });
 
+  // State for Stock Warning Confirmation Modal
+  const [stockWarningData, setStockWarningData] = useState(null);
+
   const handleConfirmQuickCalculatorSale = (totalAcumulado, breakdownList) => {
     if (recordSale) {
       const itemsFormatted = [{
@@ -49,8 +52,8 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryForm, setDeliveryForm] = useState({ cliente: '', direccion: '', telefono: '' });
 
-  const formatPrice = (num) => Math.round(Number(num)).toLocaleString('es-AR');
-  const formatQuantity = (num) => Number(num).toLocaleString('es-AR', { maximumFractionDigits: 2 });
+  const formatPrice = (num) => Math.round(Number(num) || 0).toLocaleString('es-AR');
+  const formatQuantity = (num) => Number(num || 0).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
   const parseInput = (val) => {
     const parsed = parseFloat(val.toString().replace(',', '.'));
@@ -94,7 +97,6 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
 
   const openAddModal = (product) => {
     setModalProduct(product);
-    // Initial quantity recommendation
     let initial = 1;
     if (product.tipoVenta === 'kg') initial = 1;
     if (product.tipoVenta === 'grs') initial = 250;
@@ -142,47 +144,79 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
     setCart(cart.filter(item => item.product.id !== productId));
   };
 
+  // Helper Function: Check if any cart item exceeds available stock in inventory
+  const checkStockAndProceed = (onProceed) => {
+    const insufficientItems = [];
+
+    cart.forEach(item => {
+      const liveProd = products.find(p => p.id === item.product.id);
+      const availableStock = liveProd ? (liveProd.stockActual || 0) : (item.product.stockActual || 0);
+      const requestedQty = parseFloat(item.quantity) || 0;
+
+      if (requestedQty > availableStock) {
+        insufficientItems.push({
+          product: liveProd || item.product,
+          currentStock: availableStock,
+          requestedQty: requestedQty,
+          shortage: requestedQty - availableStock
+        });
+      }
+    });
+
+    if (insufficientItems.length > 0) {
+      setStockWarningData({
+        items: insufficientItems,
+        onConfirm: onProceed
+      });
+    } else {
+      onProceed();
+    }
+  };
+
   const handleConfirmSale = () => {
     if (cart.length === 0) return;
     
-    processSale(cart);
-    
-    if (recordSale) {
-      recordSale(cart, finalTotal, 'Local');
-    }
+    checkStockAndProceed(() => {
+      processSale(cart);
+      
+      if (recordSale) {
+        recordSale(cart, finalTotal, 'Local');
+      }
 
-    setCart([]);
-    setIsManualOverride(false);
-    setManualTotal('');
-    alert('¡Venta confirmada exitosamente!');
+      setCart([]);
+      setIsManualOverride(false);
+      setManualTotal('');
+      alert('¡Venta confirmada exitosamente!');
+    });
   };
 
   const handleCreateDelivery = (e) => {
     e.preventDefault();
     if (cart.length === 0 || !addOrder) return;
 
-    addOrder({
-      cliente: deliveryForm.cliente,
-      direccion: deliveryForm.direccion,
-      telefono: deliveryForm.telefono,
-      items: cart,
-      total: finalTotal
+    checkStockAndProceed(() => {
+      addOrder({
+        cliente: deliveryForm.cliente,
+        direccion: deliveryForm.direccion,
+        telefono: deliveryForm.telefono,
+        items: cart,
+        total: finalTotal
+      });
+      
+      processSale(cart);
+      
+      setCart([]);
+      setIsManualOverride(false);
+      setManualTotal('');
+      setShowDeliveryModal(false);
+      setDeliveryForm({ cliente: '', direccion: '', telefono: '' });
+      alert('¡Pedido de Delivery creado con éxito!');
     });
-    
-    processSale(cart);
-    
-    setCart([]);
-    setIsManualOverride(false);
-    setManualTotal('');
-    setShowDeliveryModal(false);
-    setDeliveryForm({ cliente: '', direccion: '', telefono: '' });
-    alert('¡Pedido de Delivery creado con éxito!');
   };
 
   const filteredProducts = products
-    .filter(p => p.stockActual > 0)
     .filter(p => p.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => (b.esOferta ? 1 : 0) - (a.esOferta ? 1 : 0) || a.nombre.localeCompare(b.nombre));
+    .sort((a, b) => (b.stockActual > 0 ? 1 : 0) - (a.stockActual > 0 ? 1 : 0) || (b.esOferta ? 1 : 0) - (a.esOferta ? 1 : 0) || a.nombre.localeCompare(b.nombre));
 
   if (showDeliveryModal) {
     return (
@@ -220,283 +254,377 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
           <p className="text-xs text-secondary">Ingreso por catálogo o venta rápida manual con calculadora dinámicas</p>
         </div>
 
+        {/* Action Button: Abrir Calculadora de Venta Rápida por Monto */}
         <button
-          type="button"
           onClick={() => setShowCalculator(true)}
-          className="bg-primary hover:bg-surface-tint text-white px-5 py-3 rounded-2xl font-extrabold text-sm shadow-md hover:shadow-lg flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+          className="w-full sm:w-auto bg-gradient-to-r from-emerald-700 to-emerald-600 hover:from-emerald-800 hover:to-emerald-700 text-white font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
         >
-          <span className="material-symbols-outlined text-xl">calculate</span>
-          <span>⚡ Venta Rápida por Montos (Calculadora)</span>
+          <span className="material-symbols-outlined text-lg">point_of_sale</span>
+          <span>⚡ Calculadora de Venta Rápida</span>
         </button>
       </div>
 
-      {/* Calculadora Dinamica Modal */}
+      {/* POS Calculator Modal */}
       <CalculadoraCajaModal
         isOpen={showCalculator}
         onClose={() => setShowCalculator(false)}
         onConfirmSale={handleConfirmQuickCalculatorSale}
-        sales={salesData?.sales || []}
       />
 
-      {/* Ticket / Current Cart Card */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-surface-container-low flex flex-col gap-4">
-        <div className="flex items-center justify-between border-b pb-3">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-2xl">shopping_cart</span>
-            <h3 className="text-xl font-bold text-on-surface">Ticket Actual</h3>
-          </div>
+      {/* STOCK WARNING MODAL */}
+      {stockWarningData && (
+        <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[150] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl border-4 border-amber-400 w-full max-w-md text-left flex flex-col gap-4 animate-bounce-in my-auto">
+            <div className="flex items-center gap-3 border-b border-amber-200 pb-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 shadow-2xs">
+                <span className="material-symbols-outlined text-3xl">warning</span>
+              </div>
+              <div>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px] uppercase border border-amber-300">
+                  ⚠️ Atención: Control de Stock
+                </span>
+                <h3 className="text-lg font-black text-on-surface leading-tight mt-0.5">
+                  Stock Insuficiente en Venta
+                </h3>
+              </div>
+            </div>
 
-          {cart.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('¿Deseas limpiar todo el pedido actual?')) {
-                  setCart([]);
-                  setIsManualOverride(false);
-                  setManualTotal('');
-                }
-              }}
-              className="text-error hover:bg-error-container/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-error/20 active:scale-95"
-              title="Vaciar ticket si la persona se arrepintió"
-            >
-              <span className="material-symbols-outlined text-base">delete_sweep</span>
-              <span>Limpiar Pedido</span>
-            </button>
-          )}
-        </div>
+            <p className="text-xs font-semibold text-secondary">
+              Los siguientes productos superan la cantidad disponible registrada en el inventario:
+            </p>
 
-        {cart.length === 0 ? (
-          <p className="text-secondary text-center py-6">Selecciona un producto de abajo para añadirlo al ticket.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {cart.map(item => (
-              <div key={item.product.id} className="bg-surface-container-low p-3.5 rounded-xl border border-surface-container-highest flex flex-col gap-2.5">
-                {/* Top Row: Name + Remove */}
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0 flex-grow">
-                    <h4 className="font-bold text-on-surface text-base truncate">{item.product.nombre}</h4>
-                    <p className="text-xs text-secondary">
-                      ${formatPrice(item.product.precioVenta)} / {item.product.tipoVenta === 'grs' ? '100g' : item.product.tipoVenta}
-                    </p>
+            <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-3.5 space-y-2 max-h-48 overflow-y-auto">
+              {stockWarningData.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center text-xs bg-white p-2.5 rounded-xl border border-amber-200/80 shadow-2xs">
+                  <div>
+                    <span className="font-extrabold text-on-surface block">{item.product.nombre}</span>
+                    <span className="text-[11px] text-amber-900 font-bold">
+                      Stock actual: {formatQuantity(item.currentStock)} {item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold text-primary text-lg">${formatPrice(getItemPrice(item))}</span>
-                    <button 
-                      className="text-error hover:bg-error-container/30 p-1.5 rounded-full transition-colors"
-                      onClick={() => removeFromCart(item.product.id)}
-                      title="Eliminar del ticket"
-                    >
-                      <span className="material-symbols-outlined text-lg">delete</span>
-                    </button>
+                  <div className="text-right">
+                    <span className="font-black text-error block text-sm">
+                      Vendes: {formatQuantity(item.requestedQty)} {item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}
+                    </span>
+                    <span className="text-[10px] font-bold text-error bg-error-container/40 px-1.5 py-0.5 rounded-md">
+                      Faltan: {formatQuantity(item.shortage)} {item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs font-bold text-on-surface text-center">
+              ¿Deseas continuar y registrar la venta de todas formas?
+            </p>
+
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setStockWarningData(null)}
+                className="w-full py-3 rounded-xl border border-surface-container-highest text-secondary font-bold text-xs hover:bg-surface-container-low transition-colors cursor-pointer"
+              >
+                ❌ Cancelar Venta
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const callback = stockWarningData.onConfirm;
+                  setStockWarningData(null);
+                  callback();
+                }}
+                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1"
+              >
+                <span>⚠️ Vender de todas formas</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POS Main Grid: Ticket Panel + Catalog Search */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* TICKET / CARRITO DE VENTA PANEL (Col 5) */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-surface-container-low flex flex-col gap-4">
+            <div className="flex justify-between items-center border-b border-surface-container-highest pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-xl">receipt_long</span>
+                <h3 className="font-bold text-lg text-on-surface">Ticket de Venta Actual</h3>
+              </div>
+
+              {cart.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('¿Deseas limpiar todo el pedido actual?')) {
+                      setCart([]);
+                      setIsManualOverride(false);
+                      setManualTotal('');
+                    }
+                  }}
+                  className="text-error hover:bg-error-container/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-error/20 active:scale-95"
+                  title="Vaciar ticket si la persona se arrepintió"
+                >
+                  <span className="material-symbols-outlined text-base">delete_sweep</span>
+                  <span>Limpiar Pedido</span>
+                </button>
+              )}
+            </div>
+
+            {cart.length === 0 ? (
+              <p className="text-secondary text-center py-6">Selecciona un producto de abajo para añadirlo al ticket.</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {cart.map(item => (
+                  <div key={item.product.id} className="bg-surface-container-low p-3.5 rounded-xl border border-surface-container-highest flex flex-col gap-2.5">
+                    {/* Top Row: Name + Remove */}
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0 flex-grow">
+                        <h4 className="font-bold text-on-surface text-base truncate">{item.product.nombre}</h4>
+                        <p className="text-xs text-secondary">
+                          ${formatPrice(item.product.precioVenta)} / {item.product.tipoVenta === 'grs' ? '100g' : item.product.tipoVenta}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-bold text-primary text-lg">${formatPrice(getItemPrice(item))}</span>
+                        <button 
+                          className="text-error hover:bg-error-container/30 p-1.5 rounded-full transition-colors"
+                          onClick={() => removeFromCart(item.product.id)}
+                          title="Eliminar del ticket"
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quantity Controls & Cumulative Presets */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-surface-container-highest">
+                      {/* Accumulator Presets */}
+                      <div className="flex gap-1 overflow-x-auto no-scrollbar items-center">
+                        <span className="text-[10px] font-bold text-secondary mr-1">Sumar:</span>
+                        {item.product.tipoVenta === 'kg' && [
+                          { label: '+1/4', val: 0.25 },
+                          { label: '+1/2', val: 0.5 },
+                          { label: '+1kg', val: 1.0 }
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => addPresetToItem(item.product.id, preset.val)}
+                            className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+
+                        {item.product.tipoVenta === 'grs' && [
+                          { label: '+100g', val: 100 },
+                          { label: '+250g', val: 250 },
+                          { label: '+500g', val: 500 }
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => addPresetToItem(item.product.id, preset.val)}
+                            className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+
+                        {item.product.tipoVenta === 'unidad' && [
+                          { label: '+1', val: 1 },
+                          { label: '+2', val: 2 },
+                          { label: '+6', val: 6 }
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => addPresetToItem(item.product.id, preset.val)}
+                            className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Manual Input Quantity */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-secondary font-medium">Cant:</span>
+                        <input
+                          type="number"
+                          step="any"
+                          className="w-16 bg-white border border-surface-container-highest rounded-lg p-1 text-center font-bold text-sm text-on-surface outline-none focus:border-primary"
+                          value={item.quantity}
+                          onChange={(e) => updateQuantity(item.product.id, parseFloat(e.target.value) || 0)}
+                        />
+                        <span className="text-xs text-secondary font-medium">{item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Total Summary */}
+            {cart.length > 0 && (
+              <div className="border-t border-surface-container-highest pt-4 flex flex-col gap-3">
+                <div className="bg-primary-container/20 p-3.5 rounded-xl border border-primary/20 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-bold text-secondary uppercase block">Monto Total Calculado</span>
+                    <span className="text-xs text-secondary">
+                      {isManualOverride ? '⚠️ Total modificado manualmente' : 'Suma de productos seleccionados'}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-black text-primary block">${formatPrice(finalTotal)}</span>
+                    {!isManualOverride && (
+                      <span className="text-[10px] text-primary font-bold">Redondeado por $10</span>
+                    )}
                   </div>
                 </div>
 
-                {/* Quantity Controls & Cumulative Presets */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-surface-container-highest">
-                  {/* Accumulator Presets */}
-                  <div className="flex gap-1 overflow-x-auto no-scrollbar items-center">
-                    <span className="text-[10px] font-bold text-secondary mr-1">Sumar:</span>
-                    {item.product.tipoVenta === 'kg' && [
-                      { label: '+1/4', val: 0.25 },
-                      { label: '+1/2', val: 0.5 },
-                      { label: '+1 kg', val: 1 }
-                    ].map(preset => (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => addPresetToItem(item.product.id, preset.val)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white border border-surface-container-highest text-secondary hover:bg-primary-container/30 hover:text-primary transition-all active:scale-95 shadow-2xs"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
+                {/* Optional Override Total */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="overrideTotal"
+                    checked={isManualOverride}
+                    onChange={(e) => {
+                      setIsManualOverride(e.target.checked);
+                      if (e.target.checked) {
+                        setManualTotal(roundedCalculatedTotal.toString());
+                      }
+                    }}
+                    className="w-4 h-4 text-primary rounded cursor-pointer"
+                  />
+                  <label htmlFor="overrideTotal" className="text-xs font-bold text-secondary cursor-pointer">
+                    Modificar cobro final manualmente
+                  </label>
+                </div>
 
-                    {item.product.tipoVenta === 'grs' && [
-                      { label: '+100g', val: 100 },
-                      { label: '+250g', val: 250 },
-                      { label: '+500g', val: 500 },
-                      { label: '+750g', val: 750 }
-                    ].map(preset => (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => addPresetToItem(item.product.id, preset.val)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white border border-surface-container-highest text-secondary hover:bg-primary-container/30 hover:text-primary transition-all active:scale-95 shadow-2xs"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-
-                    {item.product.tipoVenta === 'unidad' && [
-                      { label: '+1', val: 1 },
-                      { label: '+2', val: 2 },
-                      { label: '+5', val: 5 }
-                    ].map(preset => (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => addPresetToItem(item.product.id, preset.val)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white border border-surface-container-highest text-secondary hover:bg-primary-container/30 hover:text-primary transition-all active:scale-95 shadow-2xs"
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Manual +/- Counter */}
-                  <div className="flex items-center gap-1 bg-white rounded-xl p-1 border border-surface-container-highest ml-auto">
-                    <button
-                      className="w-7 h-7 rounded-lg text-secondary flex items-center justify-center hover:bg-surface-container-low"
-                      onClick={() => {
-                        let step = item.product.tipoVenta === 'unidad' ? 1 : (item.product.tipoVenta === 'grs' ? 50 : 0.25);
-                        updateQuantity(item.product.id, Math.max(0, (parseFloat(item.quantity) || 0) - step));
-                      }}
-                    >
-                      <span className="material-symbols-outlined text-sm">remove</span>
-                    </button>
-
-                    <input 
+                {isManualOverride && (
+                  <div className="flex items-center gap-2 animate-fade-in">
+                    <span className="text-xs font-bold text-secondary">Nuevo Total ($):</span>
+                    <input
                       type="number"
-                      step="any"
-                      className="w-14 text-center font-bold text-sm bg-transparent outline-none" 
-                      value={item.quantity}
-                      onChange={(e) => updateQuantity(item.product.id, e.target.value)}
+                      className="w-32 bg-surface-container-low border border-primary rounded-xl p-2 font-bold text-sm text-primary outline-none"
+                      value={manualTotal}
+                      onChange={(e) => setManualTotal(e.target.value)}
+                      placeholder={roundedCalculatedTotal.toString()}
                     />
-
-                    <button
-                      className="w-7 h-7 rounded-lg text-primary flex items-center justify-center hover:bg-surface-container-low"
-                      onClick={() => {
-                        let step = item.product.tipoVenta === 'unidad' ? 1 : (item.product.tipoVenta === 'grs' ? 50 : 0.25);
-                        updateQuantity(item.product.id, (parseFloat(item.quantity) || 0) + step);
-                      }}
-                    >
-                      <span className="material-symbols-outlined text-sm">add</span>
-                    </button>
                   </div>
+                )}
+
+                {/* Checkout Actions */}
+                <div className="grid grid-cols-2 gap-3 mt-1">
+                  <button
+                    onClick={() => setShowDeliveryModal(true)}
+                    className="py-3 px-4 rounded-xl border border-primary text-primary hover:bg-primary-container/20 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">local_shipping</span>
+                    <span>Envío / Delivery</span>
+                  </button>
+
+                  <button
+                    onClick={handleConfirmSale}
+                    className="py-3 px-4 rounded-xl bg-primary hover:bg-surface-tint text-white font-bold text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-base">check_circle</span>
+                    <span>Confirmar Venta</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* CATALOG PRODUCTS SEARCH & GRID (Col 7) */}
+        <div className="lg:col-span-7 flex flex-col gap-4">
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary">
+              search
+            </span>
+            <input 
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-white text-on-surface shadow-xs" 
+              placeholder="Buscar producto en catálogo..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-surface-container-low overflow-hidden divide-y divide-surface-container-highest">
+            {filteredProducts.map(p => (
+              <div 
+                key={p.id} 
+                className={`flex justify-between items-center p-4 cursor-pointer transition-colors ${
+                  p.esOferta ? 'bg-amber-50/70 hover:bg-amber-100/70 border-l-4 border-l-amber-500' : 'hover:bg-primary-container/10 active:bg-primary-container/20'
+                }`}
+                onClick={() => openAddModal(p)}
+              >
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={getProductImage(p)} 
+                    alt={p.nombre} 
+                    className="w-12 h-12 rounded-xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
+                  />
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-base text-on-surface">{p.nombre}</span>
+                      {p.esOferta && (
+                        <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-[10px] uppercase flex items-center gap-0.5 shadow-2xs">
+                          🔥 Oferta {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta} x ${formatPrice(p.precioOferta)}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      {p.stockActual <= 0 ? (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px] uppercase border border-amber-300 shadow-2xs">
+                          ⚠️ Sin Stock ({formatQuantity(p.stockActual)})
+                        </span>
+                      ) : (
+                        <span className="text-xs text-secondary font-medium">
+                          Stock: {formatQuantity(p.stockActual)} {p.tipoVenta}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-right">
+                  <div>
+                    <div className="font-bold text-base text-primary">
+                      ${formatPrice(p.precioVenta)}
+                    </div>
+                    {p.esOferta ? (
+                      <div className="text-xs font-bold text-amber-700">
+                        🔥 Promo ${formatPrice(p.precioOferta)}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-secondary">
+                        / {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}
+                      </div>
+                    )}
+                  </div>
+
+                  <span className="material-symbols-outlined text-primary bg-primary-container/30 p-2 rounded-full">
+                    add_shopping_cart
+                  </span>
                 </div>
               </div>
             ))}
 
-            <div className="border-t pt-4 flex flex-col gap-3">
-              <div className="flex justify-between items-center text-sm text-secondary">
-                <span>Subtotal Calculado:</span>
-                <span className="font-bold text-on-surface">${formatPrice(roundedCalculatedTotal)}</span>
-              </div>
-
-              <div className="flex justify-between items-center bg-surface-container-low p-4 rounded-xl border border-surface-container-highest">
-                <span className="font-bold text-lg text-on-surface">A Cobrar:</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-2xl font-bold text-primary">$</span>
-                  <input 
-                    className="w-28 bg-white border border-surface-container-highest rounded-xl p-2 font-bold text-xl text-primary text-right outline-none focus:border-primary"
-                    value={isManualOverride ? manualTotal : formatPrice(roundedCalculatedTotal)}
-                    onChange={(e) => {
-                      setIsManualOverride(true);
-                      setManualTotal(e.target.value);
-                    }}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
-                <button 
-                  className="w-full bg-surface-container-low border border-surface-container-highest text-primary font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 hover:bg-primary-container/20 transition-colors"
-                  onClick={() => setShowDeliveryModal(true)}
-                >
-                  <span className="material-symbols-outlined">local_shipping</span>
-                  <span>A Delivery</span>
-                </button>
-
-                <button 
-                  className="sm:col-span-2 w-full bg-primary hover:bg-surface-tint text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95 text-lg"
-                  onClick={handleConfirmSale}
-                >
-                  <span className="material-symbols-outlined">check_circle</span>
-                  <span>Cobrar (${formatPrice(finalTotal)})</span>
-                </button>
-              </div>
-            </div>
+            {filteredProducts.length === 0 && (
+              <p className="text-secondary text-center p-6">No se encontraron productos disponibles.</p>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Product Selection Table */}
-      <div className="flex flex-col gap-4">
-        <h3 className="text-lg font-bold text-on-surface">Catálogo para Vender (Toca para agregar)</h3>
-        
-        <div className="relative w-full">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary">
-            search
-          </span>
-          <input 
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-white text-on-surface shadow-xs" 
-            placeholder="Buscar producto..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-surface-container-low overflow-hidden divide-y divide-surface-container-highest">
-          {filteredProducts.map(p => (
-            <div 
-              key={p.id} 
-              className={`flex justify-between items-center p-4 cursor-pointer transition-colors ${
-                p.esOferta ? 'bg-amber-50/70 hover:bg-amber-100/70 border-l-4 border-l-amber-500' : 'hover:bg-primary-container/10 active:bg-primary-container/20'
-              }`}
-              onClick={() => openAddModal(p)}
-            >
-              <div className="flex items-center gap-3">
-                <img 
-                  src={getProductImage(p)} 
-                  alt={p.nombre} 
-                  className="w-12 h-12 rounded-xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
-                />
-                <div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-base text-on-surface">{p.nombre}</span>
-                    {p.esOferta && (
-                      <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-[10px] uppercase flex items-center gap-0.5 shadow-2xs">
-                        🔥 Oferta {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta} x ${formatPrice(p.precioOferta)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-secondary">
-                    Stock: {formatQuantity(p.stockActual)} {p.tipoVenta}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 text-right">
-                <div>
-                  <div className="font-bold text-base text-primary">
-                    ${formatPrice(p.precioVenta)}
-                  </div>
-                  {p.esOferta ? (
-                    <div className="text-xs font-bold text-amber-700">
-                      🔥 Promo ${formatPrice(p.precioOferta)}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-secondary">
-                      / {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}
-                    </div>
-                  )}
-                </div>
-
-                <span className="material-symbols-outlined text-primary bg-primary-container/30 p-2 rounded-full">
-                  add_shopping_cart
-                </span>
-              </div>
-            </div>
-          ))}
-
-          {filteredProducts.length === 0 && (
-            <p className="text-secondary text-center p-6">No se encontraron productos disponibles.</p>
-          )}
-        </div>
       </div>
 
-      {/* POPUP MODAL FOR ADDING PRODUCT TO TICKET (STITCH / SCREENSHOT DESIGN) */}
+      {/* POPUP MODAL FOR ADDING PRODUCT TO TICKET */}
       {modalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in backdrop-blur-xs">
           <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-md flex flex-col gap-5 shadow-2xl border border-surface-container-highest">
@@ -513,7 +641,9 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
                 />
                 <div>
                   <h3 className="text-xl font-bold text-on-surface leading-snug">{modalProduct.nombre}</h3>
-                  <p className="text-xs text-secondary">Fresca y seleccionada.</p>
+                  <p className="text-xs text-secondary">
+                    Stock disponible: {formatQuantity(modalProduct.stockActual)} {modalProduct.tipoVenta}
+                  </p>
                   <p className="text-base font-bold text-primary mt-0.5">
                     ${formatPrice(modalProduct.precioVenta)} <span className="text-xs font-normal text-secondary">/ {modalProduct.tipoVenta === 'grs' ? '100g' : modalProduct.tipoVenta}</span>
                   </p>
@@ -528,7 +658,7 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
               </button>
             </div>
 
-            {/* Section 1: Presets pills with +1 badge */}
+            {/* Presets pills */}
             <div className="flex flex-col gap-2">
               {modalProduct.esOferta && (
                 <button
@@ -585,8 +715,8 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
                 {modalProduct.tipoVenta === 'unidad' && [
                   { label: '1 un', val: 1 },
                   { label: '2 un', val: 2 },
-                  { label: '3 un', val: 3 },
-                  { label: '5 un', val: 5 }
+                  { label: '6 un', val: 6 },
+                  { label: '12 un', val: 12 }
                 ].map(preset => (
                   <button
                     key={preset.label}
@@ -603,52 +733,37 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
               </div>
             </div>
 
-            {/* Section 2: Total Seleccionado Box */}
-            <div className="bg-surface-container-low p-4 rounded-2xl border border-surface-container-highest flex items-center justify-between">
-              <span className="font-bold text-sm text-secondary">Total seleccionado:</span>
-
+            {/* Custom Quantity Input */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-secondary">O ingresa la cantidad exacta:</label>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="w-9 h-9 rounded-full bg-white border border-surface-container-highest text-secondary flex items-center justify-center hover:bg-surface-container-high transition-colors shadow-2xs"
-                  onClick={() => {
-                    let step = modalProduct.tipoVenta === 'unidad' ? 1 : (modalProduct.tipoVenta === 'grs' ? 50 : 0.25);
-                    setModalQty(prev => Math.max(0, Number(((parseFloat(prev) || 0) - step).toFixed(2))));
-                  }}
-                >
-                  <span className="material-symbols-outlined text-base">remove</span>
-                </button>
-
-                <div className="text-xl font-bold text-primary min-w-[70px] text-center px-1">
-                  {modalProduct.tipoVenta === 'grs'
-                    ? (modalQty >= 1000 ? `${modalQty/1000} kg` : `${modalQty} g`)
-                    : (modalProduct.tipoVenta === 'kg' && modalQty < 1 && modalQty > 0
-                        ? `${modalQty * 1000} g`
-                        : `${formatQuantity(modalQty)} ${modalProduct.tipoVenta}`)}
-                </div>
-
-                <button
-                  type="button"
-                  className="w-9 h-9 rounded-full bg-white border border-surface-container-highest text-primary flex items-center justify-center hover:bg-surface-container-high transition-colors shadow-2xs"
-                  onClick={() => {
-                    let step = modalProduct.tipoVenta === 'unidad' ? 1 : (modalProduct.tipoVenta === 'grs' ? 50 : 0.25);
-                    setModalQty(prev => Number(((parseFloat(prev) || 0) + step).toFixed(2)));
-                  }}
-                >
-                  <span className="material-symbols-outlined text-base">add</span>
-                </button>
+                <input 
+                  type="number"
+                  step="any"
+                  className="flex-1 bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-lg font-bold text-on-surface outline-none focus:border-primary"
+                  value={modalQty}
+                  onChange={(e) => setModalQty(e.target.value)}
+                />
+                <span className="text-sm font-bold text-secondary">{modalProduct.tipoVenta === 'grs' ? 'g' : modalProduct.tipoVenta}</span>
               </div>
             </div>
 
-            {/* Section 3: Submit Button */}
-            <button
-              onClick={handleConfirmAddFromModal}
-              disabled={modalQty <= 0}
-              className="w-full bg-primary hover:bg-surface-tint disabled:opacity-50 text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2.5 text-lg transition-transform active:scale-95 mt-1"
-            >
-              <span className="material-symbols-outlined text-2xl">shopping_bag</span>
-              <span>Añadir al Ticket (${formatPrice(getModalPrice())})</span>
-            </button>
+            {/* Modal Bottom Subtotal & Confirm Button */}
+            <div className="border-t border-surface-container-highest pt-4 flex items-center justify-between gap-4">
+              <div>
+                <span className="text-xs text-secondary font-medium block">Subtotal estimado:</span>
+                <span className="text-2xl font-black text-primary">${formatPrice(getModalPrice())}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleConfirmAddFromModal}
+                className="py-3.5 px-6 rounded-2xl bg-primary hover:bg-surface-tint text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+                <span>Añadir al Ticket</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

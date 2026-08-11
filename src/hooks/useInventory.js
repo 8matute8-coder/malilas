@@ -199,7 +199,7 @@ export function useInventory() {
           const docRef = doc(db, 'products', p.id);
           batch.set(docRef, {
             ...p,
-            stockActual: Math.max(0, p.stockActual - item.quantity)
+            stockActual: (p.stockActual || 0) - item.quantity
           }, { merge: true });
         }
       });
