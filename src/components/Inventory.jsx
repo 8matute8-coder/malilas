@@ -7,7 +7,7 @@ export default function Inventory({ inventoryData, accountingData }) {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showMermasHistory, setShowMermasHistory] = useState(false);
-  const [showPurchasesHistoryProduct, setShowPurchasesHistoryProduct] = useState(null);
+  const [expandedPurchasesProductId, setExpandedPurchasesProductId] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -807,281 +807,312 @@ export default function Inventory({ inventoryData, accountingData }) {
             const lastPurchase = prodPurchases[0];
 
             return (
-              <div
-                key={p.id}
-                className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-4 md:px-6 py-3.5 transition-colors items-center ${
-                  p.esOferta ? 'bg-amber-50/60 hover:bg-amber-100/60 border-l-4 border-l-amber-500' : 'hover:bg-surface-container-low'
-                }`}
-              >
-                {/* Product Name & Image */}
-                <div className="col-span-1 md:col-span-3 flex items-center gap-3">
-                  <img 
-                    src={getProductImage(p)} 
-                    alt={p.nombre} 
-                    className="w-10 h-10 rounded-xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
-                  />
-                  <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h3 className="font-bold text-on-surface text-base leading-snug">{p.nombre}</h3>
-                      {p.esOferta && (
-                        <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-[10px] uppercase flex items-center gap-0.5 shadow-2xs">
-                          🔥 Promo {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta} x ${formatPrice(p.precioOferta)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-0.5 mt-0.5">
-                      <span className="text-xs text-secondary">Venta: Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
-                      {lastPurchase ? (
-                        <div 
-                          onClick={(e) => { e.stopPropagation(); setShowPurchasesHistoryProduct(p); }}
-                          className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 inline-flex items-center gap-1 cursor-pointer hover:bg-emerald-100 transition-colors shadow-2xs w-fit"
-                          title="Toca para ver el historial completo de compras de este producto"
-                        >
-                          <span className="material-symbols-outlined text-xs text-emerald-700">history</span>
-                          <span>Última Compra: 🏢 {lastPurchase.proveedor} (${formatPrice(lastPurchase.costoUnitario)})</span>
-                        </div>
-                      ) : (
-                        <span className="text-[10px] text-secondary/70 italic">Sin compras registradas aún</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cost */}
-                <div className="col-span-1 md:col-span-1 flex justify-between md:justify-center md:block text-sm">
-                  <span className="md:hidden font-semibold text-secondary">Costo:</span>
-                  <span className="text-secondary font-medium md:text-center block">${formatPrice(p.costoPromedio)}</span>
-                </div>
-
-                {/* Price & % Ganancia */}
-                <div className="col-span-1 md:col-span-3 flex justify-between md:flex-col md:justify-center text-sm gap-1">
-                  <span className="md:hidden font-semibold text-secondary">Precio:</span>
-                  <div>
-                    {editingPriceId === p.id ? (
-                      <div className="flex items-center gap-1 my-0.5">
-                        <span className="font-bold text-primary text-xs">$</span>
-                        <input
-                          type="number"
-                          autoFocus
-                          className="w-20 bg-emerald-50 border border-primary text-primary font-bold text-xs p-1 rounded-lg outline-none"
-                          value={inlinePriceInput}
-                          onChange={(e) => setInlinePriceInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveInlinePrice(p);
-                            if (e.key === 'Escape') setEditingPriceId(null);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleSaveInlinePrice(p)}
-                          className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shadow-2xs hover:bg-surface-tint"
-                          title="Guardar nuevo precio"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingPriceId(null)}
-                          className="w-6 h-6 rounded-full bg-surface-container-highest text-secondary flex items-center justify-center text-xs font-bold hover:bg-surface-container-high"
-                          title="Cancelar"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
+              <React.Fragment key={p.id}>
+                <div
+                  className={`grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 px-4 md:px-6 py-3.5 transition-colors items-center ${
+                    p.esOferta ? 'bg-amber-50/60 hover:bg-amber-100/60 border-l-4 border-l-amber-500' : 'hover:bg-surface-container-low'
+                  }`}
+                >
+                  {/* Product Name & Image */}
+                  <div className="col-span-1 md:col-span-3 flex items-center gap-3">
+                    <img 
+                      src={getProductImage(p)} 
+                      alt={p.nombre} 
+                      className="w-10 h-10 rounded-xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
+                    />
+                    <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {/* Stepper Pill Container for Price */}
-                        <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
-                            className="px-1.5 py-0.5 rounded-lg text-amber-900 hover:bg-amber-100 font-extrabold text-[11px] transition-all active:scale-90"
-                            title="Restar $100 al precio de venta"
-                          >
-                            -100
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(e) => handleStartEditPrice(p, e)}
-                            className="px-2 py-0.5 font-bold text-primary text-xs hover:bg-white rounded-md transition-colors flex items-center gap-0.5"
-                            title="Haz clic para ingresar un precio de venta exacto"
-                          >
-                            <span>${formatPrice(p.precioVenta)}</span>
-                            <span className="material-symbols-outlined text-[11px] opacity-60">edit</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
-                            className="px-1.5 py-0.5 rounded-lg text-emerald-900 hover:bg-emerald-100 font-extrabold text-[11px] transition-all active:scale-90"
-                            title="Sumar $100 al precio de venta"
-                          >
-                            +100
-                          </button>
-                        </div>
-
-                        <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-extrabold text-[11px]" title="Porcentaje de ganancia sobre el costo">
-                          +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
-                        </span>
-                      </div>
-                    )}
-                    {p.esOferta && (
-                      <div className="text-[11px] font-extrabold text-amber-600 leading-tight mt-1">
-                        🔥 ${formatPrice(p.precioOferta)} / {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Stock Badge & Potencial de Venta */}
-                <div className="col-span-1 md:col-span-3 flex justify-between items-center md:flex-col md:justify-center md:items-start text-sm gap-1">
-                  <span className="md:hidden font-semibold text-secondary">Stock:</span>
-                  <div className="flex flex-col items-end md:items-start">
-                    {editingStockId === p.id ? (
-                      <div className="flex items-center gap-1 my-0.5">
-                        <input
-                          type="number"
-                          step="any"
-                          autoFocus
-                          className="w-20 bg-primary-container/20 border border-primary text-on-surface font-bold text-xs p-1 rounded-lg outline-none"
-                          value={inlineStockInput}
-                          onChange={(e) => setInlineStockInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveInlineStock(p);
-                            if (e.key === 'Escape') setEditingStockId(null);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleSaveInlineStock(p)}
-                          className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shadow-2xs hover:bg-surface-tint"
-                          title="Guardar nuevo stock"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingStockId(null)}
-                          className="w-6 h-6 rounded-full bg-surface-container-highest text-secondary flex items-center justify-center text-xs font-bold hover:bg-surface-container-high"
-                          title="Cancelar"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {/* Stepper Pill Container for Stock */}
-                        <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustStock(p, -1, e)}
-                            className="w-7 h-6 rounded-lg text-error hover:bg-error-container/40 font-black text-sm flex items-center justify-center transition-all active:scale-90"
-                            title={`Restar ${p.tipoVenta === 'unidad' ? '1 un' : p.tipoVenta === 'grs' ? '100g' : '1 kg'} al stock`}
-                          >
-                            -
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(e) => handleStartEditStock(p, e)}
-                            className="px-2 py-0.5 font-bold text-on-surface text-xs hover:bg-white rounded-md transition-colors flex items-center gap-0.5"
-                            title="Haz clic para escribir el stock exacto"
-                          >
-                            <span>{formatQuantity(p.stockActual)}</span>
-                            <span className="text-[10px] text-secondary font-normal">{p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}</span>
-                            <span className="material-symbols-outlined text-[11px] opacity-60">edit</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustStock(p, 1, e)}
-                            className="w-7 h-6 rounded-lg text-emerald-800 hover:bg-emerald-100 font-black text-sm flex items-center justify-center transition-all active:scale-90"
-                            title={`Sumar ${p.tipoVenta === 'unidad' ? '1 un' : p.tipoVenta === 'grs' ? '100g' : '1 kg'} al stock`}
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        {isLowStock ? (
-                          <span className="px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-bold text-[10px] flex items-center gap-0.5">
-                            <span className="material-symbols-outlined text-[10px]">warning</span> Bajo
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-primary-container/30 text-primary font-bold text-[10px]">
-                            OK
+                        <h3 className="font-bold text-on-surface text-base leading-snug">{p.nombre}</h3>
+                        {p.esOferta && (
+                          <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-[10px] uppercase flex items-center gap-0.5 shadow-2xs">
+                            🔥 Promo {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta} x ${formatPrice(p.precioOferta)}
                           </span>
                         )}
                       </div>
-                    )}
-
-                    {p.stockActual > 0 && (
-                      <div 
-                        className="inline-flex items-center gap-1 bg-emerald-50/90 hover:bg-emerald-100/90 text-emerald-900 border border-emerald-200/80 px-2 py-0.5 rounded-lg text-[11px] font-bold mt-1 shadow-2xs transition-colors" 
-                        title="Potencial de venta total esperado para el stock actual de este producto"
-                      >
-                        <span className="material-symbols-outlined text-[13px] text-emerald-700">payments</span>
-                        <span>Potencial: <strong>${formatPrice(calcProductValuation(p).venta)}</strong></span>
+                      <div className="flex flex-col gap-0.5 mt-0.5">
+                        <span className="text-xs text-secondary">Venta: Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
+                        {lastPurchase ? (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setExpandedPurchasesProductId(expandedPurchasesProductId === p.id ? null : p.id); }}
+                            className="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs w-fit text-left"
+                            title="Toca para desplegar el historial completo de compras aquí mismo"
+                          >
+                            <span className="material-symbols-outlined text-xs text-emerald-700">
+                              {expandedPurchasesProductId === p.id ? 'expand_less' : 'expand_more'}
+                            </span>
+                            <span>Última Compra: 🏢 {lastPurchase.proveedor} (${formatPrice(lastPurchase.costoUnitario)})</span>
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-secondary/70 italic">Sin compras registradas aún</span>
+                        )}
                       </div>
-                    )}
+                    </div>
+                  </div>
+
+                  {/* Cost */}
+                  <div className="col-span-1 md:col-span-1 flex justify-between md:justify-center md:block text-sm">
+                    <span className="md:hidden font-semibold text-secondary">Costo:</span>
+                    <span className="text-secondary font-medium md:text-center block">${formatPrice(p.costoPromedio)}</span>
+                  </div>
+
+                  {/* Price & % Ganancia */}
+                  <div className="col-span-1 md:col-span-3 flex justify-between md:flex-col md:justify-center text-sm gap-1">
+                    <span className="md:hidden font-semibold text-secondary">Precio:</span>
+                    <div>
+                      {editingPriceId === p.id ? (
+                        <div className="flex items-center gap-1 my-0.5">
+                          <span className="font-bold text-primary text-xs">$</span>
+                          <input
+                            type="number"
+                            autoFocus
+                            className="w-20 bg-emerald-50 border border-primary text-primary font-bold text-xs p-1 rounded-lg outline-none"
+                            value={inlinePriceInput}
+                            onChange={(e) => setInlinePriceInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveInlinePrice(p);
+                              if (e.key === 'Escape') setEditingPriceId(null);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveInlinePrice(p)}
+                            className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shadow-2xs hover:bg-surface-tint"
+                            title="Guardar precio"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingPriceId(null)}
+                            className="w-6 h-6 rounded-full bg-surface-container-highest text-secondary flex items-center justify-center text-xs font-bold hover:bg-surface-container-high"
+                            title="Cancelar"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {/* Stepper Pill Container for Price */}
+                          <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
+                              className="w-7 h-7 rounded-lg bg-white hover:bg-surface-container-high text-on-surface font-extrabold text-xs flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-2xs"
+                              title="Restar $100 al precio"
+                            >
+                              -
+                            </button>
+                            <span 
+                              onClick={(e) => handleStartEditPrice(p, e)}
+                              className="font-bold text-primary hover:underline cursor-pointer px-2.5 text-sm"
+                              title="Haz clic para escribir el precio exacto"
+                            >
+                              ${formatPrice(p.precioVenta)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
+                              className="w-7 h-7 rounded-lg bg-white hover:bg-surface-container-high text-on-surface font-extrabold text-xs flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-2xs"
+                              title="Sumar $100 al precio"
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                            +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stock & Potencial */}
+                  <div className="col-span-1 md:col-span-3 flex justify-between md:flex-col md:justify-center text-sm gap-1">
+                    <span className="md:hidden font-semibold text-secondary">Stock:</span>
+                    <div className="flex flex-col items-end md:items-start">
+                      {editingStockId === p.id ? (
+                        <div className="flex items-center gap-1 my-0.5">
+                          <input
+                            type="number"
+                            step="any"
+                            autoFocus
+                            className="w-20 bg-primary-container/20 border border-primary text-on-surface font-bold text-xs p-1 rounded-lg outline-none"
+                            value={inlineStockInput}
+                            onChange={(e) => setInlineStockInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveInlineStock(p);
+                              if (e.key === 'Escape') setEditingStockId(null);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveInlineStock(p)}
+                            className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shadow-2xs hover:bg-surface-tint"
+                            title="Guardar nuevo stock"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingStockId(null)}
+                            className="w-6 h-6 rounded-full bg-surface-container-highest text-secondary flex items-center justify-center text-xs font-bold hover:bg-surface-container-high"
+                            title="Cancelar"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {/* Stepper Pill Container for Stock */}
+                          <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickAdjustStock(p, -1, e)}
+                              className="w-7 h-7 rounded-lg bg-white hover:bg-surface-container-high text-on-surface font-extrabold text-xs flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-2xs"
+                              title={`Restar 1 ${p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}`}
+                            >
+                              -
+                            </button>
+                            <span
+                              onClick={(e) => handleStartEditStock(p, e)}
+                              className={`font-bold hover:underline cursor-pointer px-2.5 text-sm ${isLowStock ? 'text-error' : 'text-on-surface'}`}
+                              title="Haz clic para escribir el stock exacto"
+                            >
+                              {formatQuantity(p.stockActual)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickAdjustStock(p, 1, e)}
+                              className="w-7 h-7 rounded-lg bg-white hover:bg-surface-container-high text-on-surface font-extrabold text-xs flex items-center justify-center transition-colors active:scale-95 cursor-pointer shadow-2xs"
+                              title={`Sumar 1 ${p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}`}
+                            >
+                              +
+                            </button>
+                          </div>
+
+                          {isLowStock && (
+                            <span className="px-2 py-0.5 rounded-full bg-error-container text-error font-extrabold text-[10px] uppercase shadow-2xs">
+                              ⚠️ Bajo
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Potencial de Venta Pill Badge */}
+                      {p.stockActual > 0 && (
+                        <div 
+                          className="inline-flex items-center gap-1 bg-emerald-50/90 hover:bg-emerald-100/90 text-emerald-900 border border-emerald-200/80 px-2 py-0.5 rounded-lg text-[11px] font-bold mt-1 shadow-2xs transition-colors" 
+                          title="Potencial de venta total esperado para el stock actual de este producto"
+                        >
+                          <span className="material-symbols-outlined text-[13px] text-emerald-700">payments</span>
+                          <span>Potencial: <strong>${formatPrice(calcProductValuation(p).venta)}</strong></span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="col-span-1 md:col-span-2 flex justify-end items-center gap-1 mt-2 md:mt-0">
+                    <button
+                      onClick={() => handleEdit(p)}
+                      className="p-2 text-secondary hover:text-primary hover:bg-surface-container-low rounded-full transition-colors"
+                      title="Editar producto"
+                    >
+                      <span className="material-symbols-outlined text-xl">edit</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedProduct(p);
+                        setStockForm({ quantity: '', cost: p.costoPromedio.toString() });
+                        setView('addStock');
+                      }}
+                      className="p-2 text-primary hover:bg-primary-container/20 rounded-full transition-colors"
+                      title="Ingresar stock"
+                    >
+                      <span className="material-symbols-outlined text-xl">add_box</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleEmptyStock(p)}
+                      className="p-2 text-amber-600 hover:bg-amber-100/50 rounded-full transition-colors"
+                      title="Vaciar stock (Poner a 0)"
+                    >
+                      <span className="material-symbols-outlined text-xl">do_not_disturb_on</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedProduct(p);
+                        setMermaForm({ quantity: '', motive: '' });
+                        setView('merma');
+                      }}
+                      className="p-2 text-error hover:bg-error-container/30 rounded-full transition-colors"
+                      title="Registrar merma"
+                    >
+                      <span className="material-symbols-outlined text-xl">remove_shopping_cart</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`¿Eliminar ${p.nombre}?`)) {
+                          deleteProduct(p.id);
+                        }
+                      }}
+                      className="p-2 text-secondary hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
+                      title="Eliminar producto"
+                    >
+                      <span className="material-symbols-outlined text-xl">delete</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="col-span-1 md:col-span-2 flex justify-end items-center gap-1 mt-2 md:mt-0">
-                  <button
-                    onClick={() => handleEdit(p)}
-                    className="p-2 text-secondary hover:text-primary hover:bg-surface-container-low rounded-full transition-colors"
-                    title="Editar producto"
-                  >
-                    <span className="material-symbols-outlined text-xl">edit</span>
-                  </button>
+                {/* Desplegable en linea para Historial de Compras */}
+                {expandedPurchasesProductId === p.id && (
+                  <div className="col-span-1 md:col-span-12 px-4 md:px-6 py-3 bg-emerald-50/80 border-y border-emerald-200/80 animate-fade-in text-xs">
+                    <div className="flex justify-between items-center font-extrabold text-emerald-950 mb-2">
+                      <span className="flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                        <span className="material-symbols-outlined text-sm text-emerald-700">history</span>
+                        <span>Historial de Compras de Proveedor ({prodPurchases.length})</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedPurchasesProductId(null)}
+                        className="text-emerald-900 hover:text-emerald-950 font-bold text-[11px] bg-white px-2.5 py-1 rounded-md border border-emerald-300 shadow-2xs flex items-center gap-1 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-xs">expand_less</span>
+                        <span>Ocultar Historial</span>
+                      </button>
+                    </div>
 
-                  <button
-                    onClick={() => {
-                      setSelectedProduct(p);
-                      setStockForm({ quantity: '', cost: p.costoPromedio.toString() });
-                      setView('addStock');
-                    }}
-                    className="p-2 text-primary hover:bg-primary-container/20 rounded-full transition-colors"
-                    title="Ingresar stock"
-                  >
-                    <span className="material-symbols-outlined text-xl">add_box</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleEmptyStock(p)}
-                    className="p-2 text-amber-600 hover:bg-amber-100/50 rounded-full transition-colors"
-                    title="Vaciar stock (Poner a 0)"
-                  >
-                    <span className="material-symbols-outlined text-xl">do_not_disturb_on</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setSelectedProduct(p);
-                      setMermaForm({ quantity: '', motive: '' });
-                      setView('merma');
-                    }}
-                    className="p-2 text-error hover:bg-error-container/30 rounded-full transition-colors"
-                    title="Registrar merma"
-                  >
-                    <span className="material-symbols-outlined text-xl">remove_shopping_cart</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`¿Eliminar ${p.nombre}?`)) {
-                        deleteProduct(p.id);
-                      }
-                    }}
-                    className="p-2 text-secondary hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
-                    title="Eliminar producto"
-                  >
-                    <span className="material-symbols-outlined text-xl">delete</span>
-                  </button>
-                </div>
-              </div>
+                    {prodPurchases.length === 0 ? (
+                      <p className="text-secondary italic py-1">No se registran compras directas de proveedores para este producto aún.</p>
+                    ) : (
+                      <div className="bg-white rounded-xl border border-emerald-200/80 p-3 divide-y divide-emerald-100 shadow-2xs space-y-1.5">
+                        {prodPurchases.map(purch => (
+                          <div key={purch.id} className="pt-1.5 flex justify-between items-center text-xs font-semibold text-emerald-950">
+                            <div>
+                              <span className="font-bold text-sm text-on-surface">🏢 {purch.proveedor}</span>
+                              <span className="text-[11px] text-secondary block mt-0.5">
+                                📅 {new Date(purch.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                {purch.categoria && <span className="ml-2 font-bold text-emerald-800">• {purch.categoria}</span>}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-black text-emerald-950 text-sm block">${formatPrice(purch.precioTotal)}</span>
+                              <span className="text-[10px] text-secondary font-bold">
+                                {purch.cantidad} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta} • (${formatPrice(purch.costoUnitario)} c/u)
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
 
