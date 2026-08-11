@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { getProductImage } from '../utils/productImages';
 
-export default function Inventory({ inventoryData }) {
+export default function Inventory({ inventoryData, accountingData }) {
   const { products, mermas = [], saveProduct, addStock, recordMerma, deleteMerma, clearAllMermas, deleteProduct } = inventoryData;
   const [view, setView] = useState('list'); // list, form, addStock, merma, mermasHistory
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showMermasHistory, setShowMermasHistory] = useState(false);
+  const [showPurchasesHistoryProduct, setShowPurchasesHistoryProduct] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -799,6 +800,12 @@ export default function Inventory({ inventoryData }) {
           {sortedProducts.map((p) => {
             const isLowStock = p.stockActual <= p.stockMinimo;
 
+            const prodPurchases = (accountingData?.purchases || []).filter(purch =>
+              purch.productId === p.id ||
+              (purch.productNombre && purch.productNombre.toLowerCase() === p.nombre.toLowerCase())
+            );
+            const lastPurchase = prodPurchases[0];
+
             return (
               <div
                 key={p.id}
@@ -822,7 +829,21 @@ export default function Inventory({ inventoryData }) {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-secondary">Venta: Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
+                    <div className="flex flex-col gap-0.5 mt-0.5">
+                      <span className="text-xs text-secondary">Venta: Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
+                      {lastPurchase ? (
+                        <div 
+                          onClick={(e) => { e.stopPropagation(); setShowPurchasesHistoryProduct(p); }}
+                          className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 inline-flex items-center gap-1 cursor-pointer hover:bg-emerald-100 transition-colors shadow-2xs w-fit"
+                          title="Toca para ver el historial completo de compras de este producto"
+                        >
+                          <span className="material-symbols-outlined text-xs text-emerald-700">history</span>
+                          <span>Última Compra: 🏢 {lastPurchase.proveedor} (${formatPrice(lastPurchase.costoUnitario)})</span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-secondary/70 italic">Sin compras registradas aún</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1139,6 +1160,78 @@ export default function Inventory({ inventoryData }) {
                 className="px-5 py-2.5 bg-secondary text-white font-bold rounded-xl text-sm"
               >
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Historial de Compras de Proveedores del Producto */}
+      {showPurchasesHistoryProduct && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-surface-container-highest max-h-[85vh] flex flex-col gap-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-700">history</span>
+                  <span>Historial de Compras de Proveedor</span>
+                </h3>
+                <p className="text-xs text-secondary font-semibold mt-0.5">
+                  {showPurchasesHistoryProduct.nombre} (Stock actual: {showPurchasesHistoryProduct.stockActual} {showPurchasesHistoryProduct.tipoVenta})
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPurchasesHistoryProduct(null)}
+                className="text-secondary hover:text-on-surface font-bold text-base p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-grow divide-y divide-surface-container-highest max-h-[55vh]">
+              {(() => {
+                const itemPurchases = (accountingData?.purchases || []).filter(purch =>
+                  purch.productId === showPurchasesHistoryProduct.id ||
+                  (purch.productNombre && purch.productNombre.toLowerCase() === showPurchasesHistoryProduct.nombre.toLowerCase())
+                );
+
+                if (itemPurchases.length === 0) {
+                  return (
+                    <div className="p-8 text-center text-secondary">
+                      <p className="text-sm font-semibold">No se registran compras directas de proveedores para este producto aún.</p>
+                    </div>
+                  );
+                }
+
+                return itemPurchases.map(p => (
+                  <div key={p.id} className="py-3 flex justify-between items-center text-sm gap-2">
+                    <div>
+                      <div className="font-bold text-on-surface flex items-center gap-2">
+                        <span>🏢 {p.proveedor}</span>
+                        <span className="text-xs font-semibold text-primary bg-primary-container/30 px-2 py-0.5 rounded-md">
+                          Cant: {p.cantidad} {showPurchasesHistoryProduct.tipoVenta}
+                        </span>
+                      </div>
+                      <div className="text-xs text-secondary mt-0.5">
+                        📅 {new Date(p.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {p.categoria && <span className="ml-2 font-semibold text-emerald-800">• {p.categoria}</span>}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-on-surface text-base block">${formatPrice(p.precioTotal)}</span>
+                      <span className="text-[10px] text-secondary">Costo unit: ${formatPrice(p.costoUnitario)}</span>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            <div className="border-t pt-3 flex justify-end">
+              <button
+                onClick={() => setShowPurchasesHistoryProduct(null)}
+                className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl text-xs shadow-sm hover:bg-surface-tint"
+              >
+                Cerrar Historial
               </button>
             </div>
           </div>

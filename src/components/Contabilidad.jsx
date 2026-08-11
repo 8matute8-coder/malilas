@@ -527,6 +527,58 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                 )}
               </div>
 
+              {/* Tarjeta de Sincronización en Vivo con Inventario */}
+              {(() => {
+                const selProd = products.find(p => p.id === purchaseForm.productId || (p.nombre && p.nombre.toLowerCase() === purchaseForm.productNombre.toLowerCase()));
+                if (!selProd || purchaseForm.isNewProduct) return null;
+
+                const qtyInput = parseFloat(purchaseForm.cantidad) || 0;
+                const totalInput = parseFloat(purchaseForm.precioTotal) || 0;
+                const newUnitCost = qtyInput > 0 && totalInput > 0 ? Math.round(totalInput / qtyInput) : 0;
+                const projectedStock = selProd.stockActual + qtyInput;
+                const projectedCost = projectedStock > 0 && newUnitCost > 0
+                  ? Math.round(((selProd.stockActual * selProd.costoPromedio) + (qtyInput * newUnitCost)) / projectedStock)
+                  : selProd.costoPromedio;
+
+                return (
+                  <div className="bg-emerald-50/90 border border-emerald-200 p-3.5 rounded-2xl flex flex-col gap-2 animate-fade-in shadow-2xs">
+                    <div className="flex items-center justify-between font-extrabold text-emerald-950 text-xs">
+                      <span className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-base text-emerald-700">sync</span>
+                        <span>Sincronizado con Inventario</span>
+                      </span>
+                      <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-300 font-bold text-emerald-800">
+                        Stock Actual: {selProd.stockActual} {selProd.tipoVenta}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-emerald-200/60">
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-900/70 uppercase block">Costo Promedio Actual:</span>
+                        <span className="font-extrabold text-emerald-950 text-sm">${formatPrice(selProd.costoPromedio)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-900/70 uppercase block">Precio Venta Actual:</span>
+                        <span className="font-black text-primary text-sm">${formatPrice(selProd.precioVenta)}</span>
+                      </div>
+                    </div>
+
+                    {newUnitCost > 0 && (
+                      <div className="bg-white/90 p-2 rounded-xl border border-emerald-300 text-[11px] text-emerald-950 font-bold flex flex-col gap-0.5 mt-0.5">
+                        <div className="flex justify-between">
+                          <span>Costo Unitario de esta compra:</span>
+                          <span className="font-black text-emerald-700">${formatPrice(newUnitCost)}</span>
+                        </div>
+                        <div className="flex justify-between text-primary">
+                          <span>Nuevo Costo Promedio Proyectado:</span>
+                          <span className="font-black">${formatPrice(projectedCost)} / {selProd.tipoVenta}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {purchaseForm.isNewProduct && (
                 <div className="bg-primary-container/20 border border-primary-container p-3.5 rounded-2xl flex flex-col gap-3 animate-fade-in">
                   <span className="text-xs font-bold text-primary flex items-center gap-1">

@@ -170,7 +170,7 @@ function App() {
         </div>
 
         <div className={activeTab === 'inventario' ? 'block' : 'hidden'}>
-          <Inventory inventoryData={inventoryData} />
+          <Inventory inventoryData={inventoryData} accountingData={accountingData} />
         </div>
 
         <div className={activeTab === 'delivery' ? 'block' : 'hidden'}>
