@@ -215,8 +215,9 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
   };
 
   const filteredProducts = products
+    .filter(p => p.stockActual > 0)
     .filter(p => p.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => (b.stockActual > 0 ? 1 : 0) - (a.stockActual > 0 ? 1 : 0) || (b.esOferta ? 1 : 0) - (a.esOferta ? 1 : 0) || a.nombre.localeCompare(b.nombre));
+    .sort((a, b) => (b.esOferta ? 1 : 0) - (a.esOferta ? 1 : 0) || a.nombre.localeCompare(b.nombre));
 
   if (showDeliveryModal) {
     return (
@@ -579,16 +580,8 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
                         </span>
                       )}
                     </div>
-                    <div>
-                      {p.stockActual <= 0 ? (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[10px] uppercase border border-amber-300 shadow-2xs">
-                          ⚠️ Sin Stock ({formatQuantity(p.stockActual)})
-                        </span>
-                      ) : (
-                        <span className="text-xs text-secondary font-medium">
-                          Stock: {formatQuantity(p.stockActual)} {p.tipoVenta}
-                        </span>
-                      )}
+                    <div className="text-xs text-secondary">
+                      Stock: {formatQuantity(p.stockActual)} {p.tipoVenta}
                     </div>
                   </div>
                 </div>
