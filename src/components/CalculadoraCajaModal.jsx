@@ -139,14 +139,10 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
   const handleFinishPayment = () => {
     if (totalAcumulado <= 0) return;
 
-    // 1. Reproducir sonido de Caja Registradora (Cha-ching)
     playCashRegisterChime();
-
-    // 2. Disparar animacion de billetes
     setPaidAmount(totalAcumulado);
     setShowSuccessAnimation(true);
 
-    // 3. Mostrar ventana por 3 segundos (3000ms), guardar venta y volver a la calculadora limpia
     setTimeout(() => {
       onConfirmSale(totalAcumulado, breakdown);
       handleResetAll();
@@ -155,19 +151,16 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
   };
 
   return (
-    <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[100] bg-black/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 pb-20 sm:pb-4 h-[100dvh] w-screen overflow-hidden animate-fade-in">
+    <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[120] bg-black/85 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 pb-20 sm:pb-4 h-[100dvh] w-screen overflow-hidden animate-fade-in">
       
-      {/* Visual Animation Overlay for Pago Realizado */}
+      {/* Visual Animation Overlay for VENTA REALIZADA */}
       {showSuccessAnimation ? (
-        <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-emerald-500 w-full max-w-sm text-center flex flex-col items-center gap-4 animate-bounce-in relative overflow-hidden my-auto mx-4">
-          
-          {/* Floating Money Elements Animation */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border-4 border-emerald-500 w-full max-w-sm text-center flex flex-col items-center gap-4 animate-bounce-in relative overflow-hidden my-auto mx-4">
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             <span className="absolute left-6 top-4 text-3xl animate-bounce">💵</span>
             <span className="absolute right-8 top-8 text-3xl animate-pulse">💸</span>
             <span className="absolute left-10 bottom-6 text-3xl animate-bounce delay-100">💰</span>
             <span className="absolute right-6 bottom-4 text-3xl animate-pulse delay-200">🪙</span>
-            <span className="absolute left-1/2 -top-2 text-2xl animate-ping">✨</span>
           </div>
 
           <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-lg border-2 border-emerald-300 transform transition-transform scale-110">
@@ -179,13 +172,13 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
               Venta N° {saleNumberToday} del día
             </span>
             <h3 className="text-2xl font-black text-emerald-950 uppercase tracking-tight">
-              ¡VENTA REALIZADA!
+              ¡VENTA REGISTRADA!
             </h3>
             <span className="text-3xl font-black text-emerald-600 block mt-2">
               ${formatPrice(paidAmount)}
             </span>
             <p className="text-xs font-bold text-secondary mt-1">
-              Venta registrada con éxito 💵
+              Guardado en Contabilidad 💵
             </p>
           </div>
 
@@ -195,14 +188,17 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
           </div>
         </div>
       ) : (
-        /* Calculator Modal Container (Positioned ABOVE mobile bottom navbar) */
-        <div className="bg-white rounded-3xl shadow-2xl border border-surface-container-low w-full max-w-sm overflow-hidden flex flex-col justify-between max-h-[calc(100dvh-85px)] sm:max-h-[90vh] my-auto">
+        /* REDESIGNED POS TERMINAL CARD (Positioned safely above bottom mobile nav) */
+        <div className="bg-white rounded-3xl shadow-2xl border border-surface-container-low w-full max-w-sm overflow-hidden flex flex-col justify-between max-h-[calc(100dvh-75px)] sm:max-h-[90vh] my-auto">
           
-          {/* Header */}
-          <div className="flex justify-between items-center px-5 py-3 border-b border-surface-container-highest bg-white shrink-0">
+          {/* Header Bar */}
+          <div className="flex justify-between items-center px-4 py-3 border-b border-surface-container-highest bg-white shrink-0">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-emerald-700 text-xl">point_of_sale</span>
-              <h2 className="text-base sm:text-lg font-black text-on-surface">Caja Registradora</h2>
+              <h2 className="text-base font-black text-on-surface">Caja Registradora POS</h2>
+              <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-md border border-emerald-200">
+                N° {saleNumberToday}
+              </span>
             </div>
             <button
               onClick={onClose}
@@ -214,63 +210,105 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
           </div>
 
           {/* Content Body */}
-          <div className="p-3.5 sm:p-4 flex-1 overflow-y-auto flex flex-col gap-2.5 justify-between">
+          <div className="p-3 sm:p-4 flex-1 overflow-y-auto flex flex-col gap-2.5 justify-between">
             
-            {/* Total Acumulado Box */}
-            <div className="bg-emerald-100/80 border border-emerald-300 p-3 rounded-2xl text-right shadow-2xs shrink-0">
-              <span className="block text-[10px] font-black text-emerald-900 uppercase tracking-wider">
-                TOTAL ACUMULADO
-              </span>
-              <span className="text-2xl sm:text-3xl font-black text-emerald-950 block mt-0.5">
-                ${formatPrice(totalAcumulado)}
-              </span>
+            {/* Visor Dual POS (Total Acumulado + Visor Entrada) */}
+            <div className="bg-gradient-to-br from-emerald-950 to-emerald-900 border border-emerald-700/80 p-3.5 rounded-2xl text-white shadow-md shrink-0 flex flex-col gap-1">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black text-emerald-300 uppercase tracking-wider">
+                  TOTAL ACUMULADO VENTA
+                </span>
+                {currentInput !== '' && (
+                  <button
+                    type="button"
+                    onClick={handleClearCurrent}
+                    className="text-[10px] bg-red-500/30 hover:bg-red-500/50 text-red-200 px-2 py-0.5 rounded-md font-bold transition-colors"
+                  >
+                    Borrar Monto
+                  </button>
+                )}
+              </div>
+
+              <div className="flex justify-between items-baseline mt-0.5">
+                <span className="text-3xl font-black tracking-tight text-white">
+                  ${formatPrice(totalAcumulado)}
+                </span>
+                <span className="text-sm font-bold text-emerald-200">
+                  {currentInput !== '' ? `Monto: $${formatPrice(currentInput)}` : '$0'}
+                </span>
+              </div>
             </div>
 
-            {/* Current Input Visor */}
-            <div className="relative shrink-0">
-              <div className="w-full bg-surface-container-low border border-surface-container-highest p-2.5 rounded-2xl text-right font-black text-xl sm:text-2xl text-on-surface shadow-2xs tracking-wider min-h-[44px] flex items-center justify-between">
-                <span className="text-[10px] text-secondary/70 font-bold uppercase tracking-wider">MONTO:</span>
-                <span>{currentInput !== '' ? `$${formatPrice(currentInput)}` : '$0'}</span>
-              </div>
-              {currentInput !== '' && (
+            {/* Desglose de Suma Horizontal Pills (1 sola línea de alto, scrolleable lateralmente) */}
+            <div className="flex items-center justify-between gap-2 bg-surface-container-low px-3 py-1.5 rounded-xl border border-surface-container-highest shrink-0">
+              <span className="text-[10px] font-black text-secondary uppercase shrink-0">
+                Sumas ({breakdown.length}):
+              </span>
+
+              {breakdown.length === 0 ? (
+                <span className="text-[11px] text-secondary/70 italic truncate">
+                  Ingresa un monto y presiona (+) para sumar
+                </span>
+              ) : (
+                <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 scrollbar-none flex-1">
+                  {breakdown.map((item, idx) => (
+                    <span
+                      key={item.id}
+                      className="bg-emerald-100 text-emerald-950 border border-emerald-300 font-extrabold text-[11px] px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0 shadow-2xs"
+                    >
+                      <span>${formatPrice(item.monto)}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBreakdownItem(item.id)}
+                        className="text-emerald-800 hover:text-error font-bold text-xs p-0.5 ml-0.5 cursor-pointer"
+                        title="Quitar suma"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {breakdown.length > 0 && (
                 <button
                   type="button"
-                  onClick={handleClearCurrent}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-error font-bold hover:underline"
+                  onClick={handleResetAll}
+                  className="text-[10px] text-error font-extrabold hover:underline shrink-0 ml-1 cursor-pointer"
                 >
-                  Limpiar
+                  Vaciar
                 </button>
               )}
             </div>
 
-            {/* Keypad Grid */}
+            {/* Keypad Grid 4x4 Numpad */}
             <div className="grid grid-cols-4 gap-1.5 shrink-0">
               {/* Row 1 */}
               <button
                 type="button"
                 onClick={() => handleDigit('7')}
-                className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
               >
                 7
               </button>
               <button
                 type="button"
                 onClick={() => handleDigit('8')}
-                className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
               >
                 8
               </button>
               <button
                 type="button"
                 onClick={() => handleDigit('9')}
-                className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
               >
                 9
               </button>
               <button
                 type="button"
                 onClick={handleBackspace}
-                className="py-2 sm:py-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-2xs"
+                className="py-2.5 sm:py-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-2xs"
                 title="Borrar último dígito"
               >
                 <span className="material-symbols-outlined text-xl">backspace</span>
@@ -280,28 +318,28 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
               <button
                 type="button"
                 onClick={() => handleDigit('4')}
-                className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
               >
                 4
               </button>
               <button
                 type="button"
                 onClick={() => handleDigit('5')}
-                className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
               >
                 5
               </button>
               <button
                 type="button"
                 onClick={() => handleDigit('6')}
-                className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
               >
                 6
               </button>
               <button
                 type="button"
                 onClick={() => handleDigit('1')}
-                className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
               >
                 1
               </button>
@@ -311,21 +349,21 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
                 <button
                   type="button"
                   onClick={() => handleDigit('2')}
-                  className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                  className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
                 >
                   2
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDigit('3')}
-                  className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                  className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
                 >
                   3
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDigit('00')}
-                  className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-bold text-xs text-secondary transition-all active:scale-95 shadow-2xs"
+                  className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-bold text-xs text-secondary transition-all active:scale-95 shadow-2xs"
                 >
                   00
                 </button>
@@ -333,14 +371,14 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
                 <button
                   type="button"
                   onClick={() => handleDigit('0')}
-                  className="col-span-2 py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
+                  className="col-span-2 py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-on-surface transition-all active:scale-95 shadow-2xs"
                 >
                   0
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDigit('.')}
-                  className="py-2 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-secondary transition-all active:scale-95 shadow-2xs"
+                  className="py-2.5 sm:py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-lg text-secondary transition-all active:scale-95 shadow-2xs"
                 >
                   ,
                 </button>
@@ -357,52 +395,9 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
               </button>
             </div>
 
-            {/* Desglose de Suma con Barra de Scroll Visible */}
-            <div className="space-y-1 shrink-0">
-              <div className="flex justify-between items-center px-1">
-                <span className="text-[10px] font-extrabold text-secondary uppercase tracking-wider">
-                  DESGLOSE DE SUMA ({breakdown.length})
-                </span>
-                {breakdown.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleResetAll}
-                    className="text-[10px] text-error font-bold hover:underline cursor-pointer"
-                  >
-                    Vaciar
-                  </button>
-                )}
-              </div>
-
-              <div className="bg-surface-container-low border border-surface-container-highest rounded-2xl p-2 max-h-24 overflow-y-auto space-y-1 divide-y divide-surface-container-highest/60 font-semibold shadow-inner">
-                {breakdown.length === 0 ? (
-                  <p className="text-[11px] text-secondary text-center py-1.5 italic">
-                    Ingresa montos y presiona (+) para sumar
-                  </p>
-                ) : (
-                  breakdown.map((item, idx) => (
-                    <div key={item.id} className="flex justify-between items-center pt-1 text-xs font-semibold text-on-surface">
-                      <span className="text-secondary text-[11px] font-bold">Suma {idx + 1}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-emerald-800">${formatPrice(item.monto)}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveBreakdownItem(item.id)}
-                          className="text-secondary hover:text-error text-xs p-0.5 cursor-pointer"
-                          title="Quitar suma"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
           </div>
 
-          {/* Footer Button labeled "VENDER" (Always visible above mobile nav) */}
+          {/* Footer Action Button (100% Guaranteed Visible on ANY Mobile Screen) */}
           <div className="p-3 bg-white border-t border-surface-container-highest shrink-0 w-full flex justify-center">
             <button
               type="button"
@@ -415,7 +410,7 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, s
               }`}
             >
               <span className="material-symbols-outlined text-xl">point_of_sale</span>
-              <span>VENDER {totalAcumulado > 0 ? `($${formatPrice(totalAcumulado)})` : ''}</span>
+              <span>REGISTRAR VENTA {totalAcumulado > 0 ? `($${formatPrice(totalAcumulado)})` : ''}</span>
             </button>
           </div>
 
