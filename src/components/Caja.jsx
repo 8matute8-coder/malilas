@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getProductImage } from '../utils/productImages';
+import { soundManager } from '../utils/audio';
 import CalculadoraCajaModal from './CalculadoraCajaModal';
 
 export default function Caja({ inventoryData, ordersData, salesData }) {
@@ -18,6 +19,7 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
   });
 
   const handleConfirmQuickCalculatorSale = (totalAcumulado, breakdownList) => {
+    soundManager.playChaChing();
     if (recordSale) {
       const itemsFormatted = [{
         product: { nombre: 'Venta por Calculadora', tipoVenta: 'unidad', costoPromedio: 0, precioVenta: totalAcumulado },
@@ -78,8 +80,9 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
     }
   }, [cart]);
 
-  // Direct Add To Cart without Intermediate Popup Modal
+  // Direct Add To Cart with Beep Sound Effect
   const handleDirectAddToCart = (product, quantityToAdd = null) => {
+    soundManager.playBeep();
     let qty = quantityToAdd;
     if (qty === null || qty <= 0) {
       if (product.tipoVenta === 'kg') qty = 1;
@@ -96,6 +99,7 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
   };
 
   const addPresetToItem = (productId, amount) => {
+    soundManager.playBeep();
     const item = cart.find(i => i.product.id === productId);
     if (!item) return;
     const current = parseFloat(item.quantity) || 0;
@@ -116,10 +120,11 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
     setCart(cart.filter(item => item.product.id !== productId));
   };
 
-  // Direct Sale Confirmation with 0 Popup Modals
+  // Direct Sale Confirmation with Cha-Ching Sound
   const handleConfirmSale = () => {
     if (cart.length === 0) return;
     
+    soundManager.playChaChing();
     processSale(cart);
     
     if (recordSale) {

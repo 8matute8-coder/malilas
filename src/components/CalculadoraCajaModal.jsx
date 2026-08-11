@@ -80,7 +80,7 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
   };
 
   return (
-    <div className="w-full bg-white rounded-3xl shadow-lg border-2 border-emerald-500 overflow-hidden flex flex-col justify-between my-2 animate-fade-in transition-all duration-300">
+    <div className="w-full max-w-xl mx-auto bg-white rounded-3xl shadow-lg border-2 border-emerald-500 overflow-hidden flex flex-col justify-between my-2 animate-fade-in transition-all duration-300">
       
       {/* Header Bar Desplegable */}
       <div className="flex justify-between items-center px-4 py-3 border-b border-surface-container-highest bg-emerald-50/80 shrink-0">
