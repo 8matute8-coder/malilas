@@ -541,40 +541,105 @@ export default function Inventory({ inventoryData, accountingData }) {
     const newTotalVal = qty * unitC;
     const projectedCost = newStock > 0 ? Math.round((oldTotalVal + newTotalVal) / newStock) : 0;
 
+    const selectedProductPurchases = (accountingData?.purchases || []).filter(purch =>
+      purch.productId === selectedProduct?.id ||
+      (purch.productNombre && selectedProduct?.nombre && purch.productNombre.toLowerCase() === selectedProduct.nombre.toLowerCase())
+    );
+
+    const supplierSuggestions = Array.from(new Set(
+      (accountingData?.purchases || []).map(p => p.proveedor).filter(Boolean)
+    )).slice(0, 5);
+
     return (
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-surface-container-low max-w-lg mx-auto animate-fade-in">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-xl font-bold text-on-surface">Ingresar Mercadería / Compra</h2>
-          <button onClick={() => setView('list')} className="text-secondary hover:text-on-surface">
-            <span className="material-symbols-outlined">close</span>
+      <div className="bg-white rounded-3xl p-6 shadow-xl border border-surface-container-low max-w-xl mx-auto animate-fade-in flex flex-col gap-5">
+        <div className="flex justify-between items-start border-b pb-3">
+          <div>
+            <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center gap-1 mb-1">
+              <span className="material-symbols-outlined text-xs">shopping_bag</span>
+              <span>Ingreso de Mercadería & Sincronización con Compras</span>
+            </span>
+            <h2 className="text-xl font-black text-on-surface">{selectedProduct?.nombre}</h2>
+            <p className="text-xs text-secondary font-semibold">
+              Stock Actual: {formatQuantity(oldStock)} {selectedProduct?.tipoVenta} • Costo Promedio Actual: ${formatPrice(oldCost)}
+            </p>
+          </div>
+          <button onClick={() => setView('list')} className="p-1 text-secondary hover:text-on-surface font-bold">
+            <span className="material-symbols-outlined text-2xl">close</span>
           </button>
         </div>
-        <p className="text-primary font-bold text-base mb-4">{selectedProduct?.nombre}</p>
+
+        {/* Sección: Historial de Últimas Compras del Producto */}
+        <div className="bg-surface-container-low p-4 rounded-2xl border border-surface-container-highest flex flex-col gap-2">
+          <div className="flex justify-between items-center text-xs font-bold text-on-surface">
+            <span className="flex items-center gap-1.5 text-emerald-950">
+              <span className="material-symbols-outlined text-emerald-700 text-base">history</span>
+              <span>Historial de Últimas Compras de este Producto ({selectedProductPurchases.length})</span>
+            </span>
+          </div>
+
+          {selectedProductPurchases.length === 0 ? (
+            <p className="text-xs text-secondary italic">No se registran compras directas previas de proveedores para este producto.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-36 overflow-y-auto divide-y divide-surface-container-highest pr-1">
+              {selectedProductPurchases.slice(0, 4).map(purch => (
+                <div key={purch.id} className="pt-1.5 flex justify-between items-center text-xs">
+                  <div>
+                    <span className="font-bold text-on-surface">🏢 {purch.proveedor}</span>
+                    <span className="text-[11px] text-secondary block">
+                      📅 {new Date(purch.fecha).toLocaleDateString('es-AR')} • Cant: {purch.cantidad} {selectedProduct?.tipoVenta}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-emerald-800 block">${formatPrice(purch.precioTotal)}</span>
+                    <span className="text-[10px] text-secondary font-bold">${formatPrice(purch.costoUnitario)} c/u</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <form onSubmit={submitStock} className="flex flex-col gap-4">
+          {/* Campo Proveedor */}
           <div>
             <label className="block text-xs font-bold text-secondary mb-1">
-              Proveedor / Distribuidora
+              Proveedor / Distribuidora *
             </label>
             <input 
+              required
               type="text"
               className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-on-surface" 
               value={stockForm.proveedor || ''} 
               onChange={e => setStockForm({ ...stockForm, proveedor: e.target.value })} 
               placeholder="Ej: Huerta San José / Mercado Abasto" 
             />
-            <span className="text-[10px] text-secondary">Impactará automáticamente esta compra en el módulo de Compras</span>
+            {supplierSuggestions.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                <span className="text-[10px] font-bold text-secondary">Sugerencias:</span>
+                {supplierSuggestions.map(sup => (
+                  <button
+                    key={sup}
+                    type="button"
+                    onClick={() => setStockForm({ ...stockForm, proveedor: sup })}
+                    className="text-[10px] font-bold bg-white hover:bg-emerald-50 text-emerald-900 border border-emerald-200 px-2 py-0.5 rounded-md transition-colors"
+                  >
+                    + {sup}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Cantidad Comprada */}
           <div>
             <label className="block text-xs font-bold text-secondary mb-1">
-              Cantidad Comprada ({selectedProduct?.tipoVenta === 'grs' ? 'Gramos' : selectedProduct?.tipoVenta === 'unidad' ? 'Unidades' : 'Kilos'}) *
+              ¿Cuánto Compraste? ({selectedProduct?.tipoVenta === 'grs' ? 'Gramos' : selectedProduct?.tipoVenta === 'unidad' ? 'Unidades' : 'Kilos'}) *
             </label>
             <input 
               required 
               type="number"
               step="any"
-              className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold" 
+              className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-on-surface" 
               value={stockForm.quantity} 
               onChange={e => {
                 const q = e.target.value;
@@ -586,16 +651,18 @@ export default function Inventory({ inventoryData, accountingData }) {
                 }
                 setStockForm({ ...stockForm, quantity: q, cost: newCost });
               }} 
-              placeholder="Ej: 10" 
+              placeholder="Ej: 15" 
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Precio y Costo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-amber-900 mb-1">Precio TOTAL Pagado por la Compra ($)</label>
+              <label className="block text-xs font-bold text-amber-900 mb-1">Precio TOTAL Pagado ($) *</label>
               <input 
                 type="number" 
-                className="w-full bg-amber-50/80 border border-amber-300 rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-amber-950" 
+                required
+                className="w-full bg-amber-50 border border-amber-300 rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-amber-950" 
                 value={stockForm.totalPrice} 
                 onChange={e => {
                   const tp = e.target.value;
@@ -608,11 +675,10 @@ export default function Inventory({ inventoryData, accountingData }) {
                 }} 
                 placeholder="Ej: 15000" 
               />
-              <span className="text-[10px] text-amber-700">Calcula el costo por unidad/kg automáticamente</span>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-secondary mb-1">Costo Unitario ($ por {selectedProduct?.tipoVenta}) *</label>
+              <label className="block text-xs font-bold text-secondary mb-1">Costo Unitario ($/{selectedProduct?.tipoVenta}) *</label>
               <input 
                 type="number" 
                 required
@@ -627,30 +693,41 @@ export default function Inventory({ inventoryData, accountingData }) {
                   }
                   setStockForm({ ...stockForm, cost: uc, totalPrice: newTotal });
                 }} 
-                placeholder="Ej: 1500" 
+                placeholder="Ej: 1000" 
               />
-              <span className="text-[10px] text-secondary">Costo por unidad de medida</span>
             </div>
           </div>
 
-          {/* Proyección de Cálculo */}
+          {/* Proyección del Reajuste de Costo Promedio */}
           {qty > 0 && (
-            <div className="bg-primary-container/20 border border-primary-container p-4 rounded-xl flex flex-col gap-1 text-xs text-on-surface animate-fade-in">
-              <div className="font-bold text-primary flex items-center gap-1">
-                <span className="material-symbols-outlined text-base">calculate</span>
-                <span>Reajuste Automático de Costo Promedio:</span>
+            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex flex-col gap-1 text-xs text-emerald-950 animate-fade-in shadow-2xs">
+              <div className="font-extrabold text-emerald-900 flex items-center gap-1">
+                <span className="material-symbols-outlined text-base text-emerald-700">calculate</span>
+                <span>Cálculo del Nuevo Costo Promedio Ponderado:</span>
               </div>
               <p>• Compra actual: <strong>{qty} {selectedProduct?.tipoVenta}</strong> a <strong>${formatPrice(unitC)}</strong> c/u (Total pagado: <strong>${formatPrice(totalP || qty * unitC)}</strong>)</p>
               <p>• Stock previo: {formatQuantity(oldStock)} {selectedProduct?.tipoVenta} (Costo promedio anterior: ${formatPrice(oldCost)})</p>
-              <p className="text-sm font-bold text-primary mt-1">
-                ➔ Nuevo Costo Promedio Ponderado: <span className="underline">${formatPrice(projectedCost)} / {selectedProduct?.tipoVenta}</span>
-              </p>
+              <div className="text-sm font-black text-primary mt-1 bg-white p-2 rounded-xl border border-emerald-300 flex justify-between items-center">
+                <span>➔ Nuevo Costo Promedio Ponderado:</span>
+                <span className="text-base text-emerald-800">${formatPrice(projectedCost)} / {selectedProduct?.tipoVenta}</span>
+              </div>
             </div>
           )}
 
-          <div className="flex justify-end gap-3 mt-4">
-            <button type="button" className="px-4 py-2.5 rounded-xl border border-surface-container-highest text-secondary hover:bg-surface-container-low text-sm font-semibold" onClick={() => setView('list')}>Cancelar</button>
-            <button type="submit" className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm shadow-md hover:bg-surface-tint">Confirmar Ingreso</button>
+          <div className="flex justify-end gap-3 mt-2">
+            <button 
+              type="button" 
+              className="px-5 py-2.5 rounded-xl border border-surface-container-highest text-secondary font-semibold hover:bg-surface-container-low text-xs" 
+              onClick={() => setView('list')}
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-md hover:bg-emerald-700 active:scale-95 transition-all"
+            >
+              Confirmar e Impactar en Compras
+            </button>
           </div>
         </form>
       </div>
