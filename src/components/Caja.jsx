@@ -7,6 +7,7 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
   const { addOrder } = ordersData || {};
   const { recordSale } = salesData || {};
   const [showCalculator, setShowCalculator] = useState(false);
+  
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem('lamalila_caja_cart');
@@ -38,11 +39,8 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
       console.error(e);
     }
   }, [cart]);
+
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Modal for Adding Product to Ticket
-  const [modalProduct, setModalProduct] = useState(null);
-  const [modalQty, setModalQty] = useState(0);
 
   // Custom override for final total
   const [manualTotal, setManualTotal] = useState('');
@@ -71,18 +69,6 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
     return qty * item.product.precioVenta;
   };
 
-  const getModalPrice = () => {
-    if (!modalProduct) return 0;
-    const qty = parseFloat(modalQty) || 0;
-    if (modalProduct.esOferta && qty === parseFloat(modalProduct.cantidadOferta)) {
-      return Math.round(modalProduct.precioOferta);
-    }
-    if (modalProduct.tipoVenta === 'grs') {
-      return Math.round((qty / 100) * modalProduct.precioVenta);
-    }
-    return Math.round(qty * modalProduct.precioVenta);
-  };
-
   const calculatedTotal = cart.reduce((sum, item) => sum + getItemPrice(item), 0);
   const roundedCalculatedTotal = Math.round(calculatedTotal);
   
@@ -95,32 +81,21 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
     }
   }, [cart]);
 
-  const openAddModal = (product) => {
-    setModalProduct(product);
-    let initial = 1;
-    if (product.tipoVenta === 'kg') initial = 1;
-    if (product.tipoVenta === 'grs') initial = 250;
-    setModalQty(initial);
-  };
-
-  const handleConfirmAddFromModal = () => {
-    if (!modalProduct || modalQty <= 0) return;
-
-    const existing = cart.find(item => item.product.id === modalProduct.id);
-    if (existing) {
-      updateQuantity(modalProduct.id, (parseFloat(existing.quantity) || 0) + parseFloat(modalQty));
-    } else {
-      setCart([...cart, { product: modalProduct, quantity: parseFloat(modalQty) }]);
+  // Direct Add To Cart without Intermediate Popup Modal
+  const handleDirectAddToCart = (product, quantityToAdd = null) => {
+    let qty = quantityToAdd;
+    if (qty === null || qty <= 0) {
+      if (product.tipoVenta === 'kg') qty = 1;
+      else if (product.tipoVenta === 'grs') qty = 250;
+      else qty = 1;
     }
 
-    setModalProduct(null);
-  };
-
-  const addPresetToModal = (amount) => {
-    setModalQty(prev => {
-      const current = parseFloat(prev) || 0;
-      return Number((current + amount).toFixed(2));
-    });
+    const existing = cart.find(item => item.product.id === product.id);
+    if (existing) {
+      updateQuantity(product.id, (parseFloat(existing.quantity) || 0) + parseFloat(qty));
+    } else {
+      setCart([...cart, { product, quantity: parseFloat(qty) }]);
+    }
   };
 
   const addPresetToItem = (productId, amount) => {
@@ -248,11 +223,11 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
   }
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
+    <div className="flex flex-col gap-6 animate-fade-in w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h2 className="text-2xl font-bold text-on-surface">Caja Registradora</h2>
-          <p className="text-xs text-secondary">Ingreso por catálogo o venta rápida manual con calculadora dinámicas</p>
+          <p className="text-xs text-secondary">Ingreso rápido directo desde catálogo o con calculadora dinámicas</p>
         </div>
 
         {/* Action Button: Abrir Calculadora de Venta Rápida por Monto */}
@@ -344,7 +319,7 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
       )}
 
       {/* POS Main Grid: Ticket Panel + Catalog Search */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
         
         {/* TICKET / CARRITO DE VENTA PANEL (Col 4 en XL, Col 5 en LG) */}
         <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4">
@@ -375,7 +350,7 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
             </div>
 
             {cart.length === 0 ? (
-              <p className="text-secondary text-center py-6">Selecciona un producto de abajo para añadirlo al ticket.</p>
+              <p className="text-secondary text-center py-6">Selecciona un producto a la derecha para añadirlo al ticket.</p>
             ) : (
               <div className="flex flex-col gap-3">
                 {cart.map(item => (
@@ -549,7 +524,7 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
               search
             </span>
             <input 
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-white text-on-surface shadow-xs" 
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-white text-on-surface shadow-xs text-sm font-bold" 
               placeholder="Buscar producto en catálogo..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -557,57 +532,134 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-surface-container-low overflow-hidden divide-y divide-surface-container-highest">
-            {filteredProducts.map(p => (
-              <div 
-                key={p.id} 
-                className={`flex justify-between items-center p-4 cursor-pointer transition-colors ${
-                  p.esOferta ? 'bg-amber-50/70 hover:bg-amber-100/70 border-l-4 border-l-amber-500' : 'hover:bg-primary-container/10 active:bg-primary-container/20'
-                }`}
-                onClick={() => openAddModal(p)}
-              >
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={getProductImage(p)} 
-                    alt={p.nombre} 
-                    className="w-12 h-12 rounded-xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
-                  />
-                  <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-base text-on-surface">{p.nombre}</span>
-                      {p.esOferta && (
-                        <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-[10px] uppercase flex items-center gap-0.5 shadow-2xs">
-                          🔥 Oferta {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta} x ${formatPrice(p.precioOferta)}
+            {filteredProducts.map(p => {
+              const cartItem = cart.find(i => i.product.id === p.id);
+
+              return (
+                <div 
+                  key={p.id} 
+                  className={`p-3.5 sm:p-4 transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 ${
+                    p.esOferta ? 'bg-amber-50/70 hover:bg-amber-100/70 border-l-4 border-l-amber-500' : 'hover:bg-primary-container/10'
+                  }`}
+                >
+                  {/* Left: Image, Name, Unit, Stock & Active Ticket Badge */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <img 
+                      src={getProductImage(p)} 
+                      alt={p.nombre} 
+                      className="w-12 h-12 rounded-xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
+                    />
+                    <div className="min-w-0 flex-grow">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="font-extrabold text-base text-on-surface leading-snug">{p.nombre}</h4>
+                        {cartItem && (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-700 text-white font-black text-[10px] uppercase shadow-2xs flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[12px]">shopping_cart</span>
+                            <span>En Ticket: {formatQuantity(cartItem.quantity)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                        <span className="text-xs font-bold text-primary">
+                          ${formatPrice(p.precioVenta)} / {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}
                         </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-secondary">
-                      Stock: {formatQuantity(p.stockActual)} {p.tipoVenta}
+                        <span className="text-[11px] text-secondary font-medium">
+                          • Stock: {formatQuantity(p.stockActual)} {p.tipoVenta}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-3 text-right">
-                  <div>
-                    <div className="font-bold text-base text-primary">
-                      ${formatPrice(p.precioVenta)}
-                    </div>
-                    {p.esOferta ? (
-                      <div className="text-xs font-bold text-amber-700">
-                        🔥 Promo ${formatPrice(p.precioOferta)}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-secondary">
-                        / {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}
+                  {/* Right: Direct Quick-Add Action Buttons directly on the Catalog row */}
+                  <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+                    {/* If Product has an Offer/Promo */}
+                    {p.esOferta && (
+                      <button
+                        type="button"
+                        onClick={() => handleDirectAddToCart(p, parseFloat(p.cantidadOferta) || 1)}
+                        className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold text-[11px] shadow-2xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+                        title={`Añadir Oferta Directa: ${p.cantidadOferta} x $${formatPrice(p.precioOferta)}`}
+                      >
+                        <span className="material-symbols-outlined text-xs">local_offer</span>
+                        <span>Promo {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta} x ${formatPrice(p.precioOferta)}</span>
+                      </button>
+                    )}
+
+                    {/* Direct Quick Presets for KG */}
+                    {p.tipoVenta === 'kg' && (
+                      <div className="flex items-center gap-1">
+                        {[
+                          { label: '+1/4', val: 0.25 },
+                          { label: '+1/2', val: 0.5 },
+                          { label: '+1kg', val: 1.0 }
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handleDirectAddToCart(p, preset.val)}
+                            className="px-2 py-1.5 rounded-xl bg-surface-container-low hover:bg-primary-container/30 text-on-surface font-extrabold text-xs border border-surface-container-highest transition-all active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
                       </div>
                     )}
-                  </div>
 
-                  <span className="material-symbols-outlined text-primary bg-primary-container/30 p-2 rounded-full">
-                    add_shopping_cart
-                  </span>
+                    {/* Direct Quick Presets for Grams */}
+                    {p.tipoVenta === 'grs' && (
+                      <div className="flex items-center gap-1">
+                        {[
+                          { label: '+100g', val: 100 },
+                          { label: '+250g', val: 250 },
+                          { label: '+500g', val: 500 }
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handleDirectAddToCart(p, preset.val)}
+                            className="px-2 py-1.5 rounded-xl bg-surface-container-low hover:bg-primary-container/30 text-on-surface font-extrabold text-xs border border-surface-container-highest transition-all active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Direct Quick Presets for Unidad */}
+                    {p.tipoVenta === 'unidad' && (
+                      <div className="flex items-center gap-1">
+                        {[
+                          { label: '+1', val: 1 },
+                          { label: '+2', val: 2 },
+                          { label: '+6', val: 6 }
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handleDirectAddToCart(p, preset.val)}
+                            className="px-2 py-1.5 rounded-xl bg-surface-container-low hover:bg-primary-container/30 text-on-surface font-extrabold text-xs border border-surface-container-highest transition-all active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Big Green Direct Add Button (+1 / default portion) */}
+                    <button
+                      type="button"
+                      onClick={() => handleDirectAddToCart(p)}
+                      className="bg-primary hover:bg-surface-tint text-white px-3 py-1.5 rounded-xl font-black text-xs shadow-xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+                      title="Añadir al ticket inmediatamente sin modal"
+                    >
+                      <span className="material-symbols-outlined text-base">add_shopping_cart</span>
+                      <span>Añadir</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {filteredProducts.length === 0 && (
               <p className="text-secondary text-center p-6">No se encontraron productos disponibles.</p>
@@ -616,156 +668,6 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
         </div>
 
       </div>
-
-      {/* POPUP MODAL FOR ADDING PRODUCT TO TICKET (FULL AVAILABLE SPACE) */}
-      {modalProduct && (
-        <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[120] bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 pb-20 sm:pb-6 h-[100dvh] w-screen overflow-hidden animate-fade-in">
-          <div className="bg-white rounded-3xl p-5 sm:p-7 w-full max-w-2xl max-h-[calc(100dvh-85px)] sm:max-h-[92vh] flex flex-col justify-between shadow-2xl border border-surface-container-highest my-auto overflow-y-auto gap-5">
-            
-            {/* Top Bar with Grab Indicator & Close Button */}
-            <div>
-              <div className="w-12 h-1 bg-surface-container-highest rounded-full mx-auto mb-3"></div>
-
-              {/* Product Summary Header */}
-              <div className="flex justify-between items-start border-b border-surface-container-highest pb-4">
-                <div className="flex items-center gap-4">
-                  <img 
-                    src={getProductImage(modalProduct)} 
-                    alt={modalProduct.nombre} 
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-sm" 
-                  />
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-on-surface leading-tight">{modalProduct.nombre}</h3>
-                    <span className="text-xs sm:text-sm font-extrabold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 inline-block mt-1">
-                      Stock disponible: {formatQuantity(modalProduct.stockActual)} {modalProduct.tipoVenta}
-                    </span>
-                    <p className="text-lg sm:text-xl font-black text-primary mt-1">
-                      ${formatPrice(modalProduct.precioVenta)} <span className="text-xs font-normal text-secondary">/ {modalProduct.tipoVenta === 'grs' ? '100g' : modalProduct.tipoVenta}</span>
-                    </p>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => setModalProduct(null)}
-                  className="w-10 h-10 rounded-full bg-surface-container-low hover:bg-surface-container-high text-secondary flex items-center justify-center transition-colors font-bold cursor-pointer"
-                  title="Cerrar"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Presets pills */}
-            <div className="flex flex-col gap-3">
-              {modalProduct.esOferta && (
-                <button
-                  type="button"
-                  onClick={() => setModalQty(parseFloat(modalProduct.cantidadOferta) || 1)}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-extrabold text-sm sm:text-base shadow-md hover:brightness-105 transition-all active:scale-98 flex items-center justify-center gap-2 mb-1 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-lg">local_offer</span>
-                  <span>Aprovechar Oferta: {modalProduct.cantidadOferta} {modalProduct.tipoVenta === 'grs' ? 'g' : modalProduct.tipoVenta} x ${formatPrice(modalProduct.precioOferta)}</span>
-                </button>
-              )}
-
-              <label className="text-sm font-extrabold text-on-surface uppercase tracking-wider">
-                Selecciona Cantidad Rápida:
-              </label>
-
-              <div className="grid grid-cols-4 gap-2.5">
-                {modalProduct.tipoVenta === 'kg' && [
-                  { label: '1/4 kg', val: 0.25 },
-                  { label: '1/2 kg', val: 0.5 },
-                  { label: '1 kg', val: 1.0 },
-                  { label: '2 kg', val: 2.0 }
-                ].map(preset => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => addPresetToModal(preset.val)}
-                    className="relative py-3.5 sm:py-4 px-2 rounded-2xl bg-surface-container-low text-on-surface font-black text-xs sm:text-sm border border-surface-container-highest hover:border-primary hover:bg-primary-container/20 transition-all active:scale-95 text-center flex items-center justify-center shadow-2xs cursor-pointer"
-                  >
-                    <span>{preset.label}</span>
-                    <span className="absolute -top-1.5 -right-1 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
-                      +1
-                    </span>
-                  </button>
-                ))}
-
-                {modalProduct.tipoVenta === 'grs' && [
-                  { label: '100g', val: 100 },
-                  { label: '250g', val: 250 },
-                  { label: '500g', val: 500 },
-                  { label: '750g', val: 750 }
-                ].map(preset => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => addPresetToModal(preset.val)}
-                    className="relative py-3.5 sm:py-4 px-2 rounded-2xl bg-surface-container-low text-on-surface font-black text-xs sm:text-sm border border-surface-container-highest hover:border-primary hover:bg-primary-container/20 transition-all active:scale-95 text-center flex items-center justify-center shadow-2xs cursor-pointer"
-                  >
-                    <span>{preset.label}</span>
-                    <span className="absolute -top-1.5 -right-1 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
-                      +1
-                    </span>
-                  </button>
-                ))}
-
-                {modalProduct.tipoVenta === 'unidad' && [
-                  { label: '1 un', val: 1 },
-                  { label: '2 un', val: 2 },
-                  { label: '6 un', val: 6 },
-                  { label: '12 un', val: 12 }
-                ].map(preset => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => addPresetToModal(preset.val)}
-                    className="relative py-3.5 sm:py-4 px-2 rounded-2xl bg-surface-container-low text-on-surface font-black text-xs sm:text-sm border border-surface-container-highest hover:border-primary hover:bg-primary-container/20 transition-all active:scale-95 text-center flex items-center justify-center shadow-2xs cursor-pointer"
-                  >
-                    <span>{preset.label}</span>
-                    <span className="absolute -top-1.5 -right-1 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
-                      +1
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom Quantity Input */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-extrabold text-secondary">O escribe la cantidad exacta:</label>
-              <div className="flex items-center gap-3">
-                <input 
-                  type="number"
-                  step="any"
-                  className="flex-1 bg-surface-container-low border border-primary/40 rounded-2xl p-3.5 text-xl sm:text-2xl font-black text-primary outline-none focus:border-primary shadow-2xs"
-                  value={modalQty}
-                  onChange={(e) => setModalQty(e.target.value)}
-                />
-                <span className="text-base font-black text-secondary">{modalProduct.tipoVenta === 'grs' ? 'g' : modalProduct.tipoVenta}</span>
-              </div>
-            </div>
-
-            {/* Modal Bottom Subtotal & Confirm Button */}
-            <div className="border-t border-surface-container-highest pt-4 flex items-center justify-between gap-4">
-              <div>
-                <span className="text-xs text-secondary font-bold uppercase block">Subtotal a Cobrar:</span>
-                <span className="text-3xl font-black text-primary">${formatPrice(getModalPrice())}</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleConfirmAddFromModal}
-                className="py-4 px-8 rounded-2xl bg-primary hover:bg-surface-tint text-white font-black text-base shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-xl">add_shopping_cart</span>
-                <span>Añadir al Ticket</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
