@@ -1,19 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
-export default function Contabilidad({ accountingData, inventoryData, salesData, contactsData }) {
+export default function Contabilidad({ accountingData, inventoryData, salesData, contactsData, ordersData }) {
   const { 
-    purchases, expenses, extraMovements, 
+    purchases = [], expenses = [], extraMovements = [], 
     recordPurchase, updatePurchaseCategory, deletePurchase, 
     recordExpense, toggleExpenseStatus, deleteExpense, 
     recordExtraMovement, deleteExtraMovement 
-  } = accountingData;
+  } = accountingData || {};
 
-  const { products } = inventoryData;
-  const { sales } = salesData;
+  const { products = [], saveProduct } = inventoryData || {};
+  const { sales = [], deleteSale } = salesData || {};
 
-  const [subView, setSubView] = useState('dashboard'); // 'dashboard', 'compras', 'ventas', 'pagos', 'extras'
+  // Filter States for the Unified Excel Table
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('todos'); // 'todos', 'Venta', 'Compra', 'Gasto'
+  const [categoryFilter, setCategoryFilter] = useState('todas');
+  const [timeFilter, setTimeFilter] = useState('mes'); // 'hoy', 'semana', 'mes', 'todo'
 
-  // Modal / Form States
+  const [showStats, setShowStats] = useState(false);
+  const [selectedTransactionDetail, setSelectedTransactionDetail] = useState(null);
+
+  // Form Modals
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
@@ -32,7 +39,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
 
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
-    concepto: '', categoria: 'Servicios', monto: '', estado: 'Pendiente'
+    concepto: '', categoria: 'Servicios', monto: '', estado: 'Pagado'
   });
 
   const [showExtraModal, setShowExtraModal] = useState(false);
@@ -42,44 +49,243 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
 
   const formatPrice = (num) => Math.round(Number(num) || 0).toLocaleString('es-AR');
 
-  // Helper Calculations
-  const totalVentas = sales.reduce((acc, s) => acc + (s.total || 0), 0);
+  // -------------------------------------------------------------
+  // UNIFIED MASTER LEDGER ARRAY (Combines Ventas + Compras + Gastos + Extras)
+  // -------------------------------------------------------------
+  const masterLedger = useMemo(() => {
+    const list = [];
 
-  const totalIngresosExtras = extraMovements
-    .filter(m => m.tipo === 'ingreso')
-    .reduce((acc, m) => acc + (m.monto || 0), 0);
+    // 1. Sales (Ventas)
+    (sales || []).forEach(s => {
+      const sDate = new Date(s.fecha);
+      const isCalc = s.type === 'Venta Rápida' || s.originalOrder === 'Mostrador (Calculadora)' || s.cliente === 'Mostrador (Calculadora)';
+      
+      list.push({
+        id: `sale-${s.id}`,
+        originalId: s.id,
+        rawDate: sDate,
+        fechaFormatted: sDate.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        tipo: 'Venta',
+        tipoBadgeColor: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+        tipoIcon: 'trending_up',
+        categoria: s.type === 'Delivery' ? 'Delivery / Online' : (isCalc ? 'Venta por Calculadora' : 'Venta Mostrador'),
+        proveedorCliente: s.cliente || (isCalc ? `Venta N° ${s.ventaNumero || s.id.slice(0,4)}` : 'Cliente Mostrador'),
+        monto: s.total || 0,
+        isIncome: true,
+        recordType: 'sale',
+        raw: s
+      });
+    });
 
-  const totalGastosExtras = extraMovements
-    .filter(m => m.tipo === 'gasto')
-    .reduce((acc, m) => acc + (m.monto || 0), 0);
+    // 2. Purchases (Compras)
+    (purchases || []).forEach(p => {
+      const pDate = new Date(p.fecha);
+      list.push({
+        id: `purchase-${p.id}`,
+        originalId: p.id,
+        rawDate: pDate,
+        fechaFormatted: pDate.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        tipo: 'Compra',
+        tipoBadgeColor: 'bg-rose-100 text-rose-900 border-rose-300',
+        tipoIcon: 'shopping_bag',
+        categoria: p.categoria || 'Mercadería (Stock)',
+        proveedorCliente: p.proveedor || 'Proveedor General',
+        monto: -(p.precioTotal || 0),
+        isIncome: false,
+        recordType: 'purchase',
+        raw: p
+      });
+    });
 
-  const totalComprasMercaderia = purchases
-    .filter(p => !p.categoria || p.categoria.includes('Mercadería') || p.categoria.includes('Stock'))
-    .reduce((acc, p) => acc + (p.precioTotal || 0), 0);
+    // 3. Gastos Fijos (Expenses)
+    (expenses || []).forEach(e => {
+      const eDate = new Date(e.fecha);
+      list.push({
+        id: `expense-${e.id}`,
+        originalId: e.id,
+        rawDate: eDate,
+        fechaFormatted: eDate.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        tipo: 'Gasto Fijo',
+        tipoBadgeColor: 'bg-amber-100 text-amber-950 border-amber-300',
+        tipoIcon: 'receipt_long',
+        categoria: e.categoria || 'Servicios',
+        proveedorCliente: e.concepto || 'Gasto Operativo',
+        monto: -(e.monto || 0),
+        isIncome: false,
+        recordType: 'expense',
+        raw: e
+      });
+    });
 
-  const totalComprasInsumos = purchases
-    .filter(p => p.categoria && (p.categoria.includes('Insumos') || p.categoria.includes('Extras')))
-    .reduce((acc, p) => acc + (p.precioTotal || 0), 0);
+    // 4. Extra Movements
+    (extraMovements || []).forEach(m => {
+      const mDate = new Date(m.fecha);
+      const isIngreso = m.tipo === 'ingreso';
+      list.push({
+        id: `extra-${m.id}`,
+        originalId: m.id,
+        rawDate: mDate,
+        fechaFormatted: mDate.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        tipo: isIngreso ? 'Ingreso Extra' : 'Gasto Extra',
+        tipoBadgeColor: isIngreso ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-purple-100 text-purple-900 border-purple-300',
+        tipoIcon: isIngreso ? 'add_circle' : 'remove_circle',
+        categoria: isIngreso ? 'Otros Ingresos' : 'Gastos Extras',
+        proveedorCliente: m.concepto || 'Movimiento Ajuste',
+        monto: isIngreso ? (m.monto || 0) : -(m.monto || 0),
+        isIncome: isIngreso,
+        recordType: 'extra',
+        raw: m
+      });
+    });
 
-  const totalCompras = purchases.reduce((acc, p) => acc + (p.precioTotal || 0), 0);
+    // Sort chronologically descending (newest first)
+    return list.sort((a, b) => b.rawDate - a.rawDate);
+  }, [sales, purchases, expenses, extraMovements]);
 
-  const totalGastosFijosPagados = expenses
-    .filter(e => e.estado === 'Pagado')
-    .reduce((acc, e) => acc + (e.monto || 0), 0);
+  // -------------------------------------------------------------
+  // FILTERED LEDGER ARRAY
+  // -------------------------------------------------------------
+  const filteredLedger = useMemo(() => {
+    const now = new Date();
 
-  const totalGastosFijosPendientes = expenses
-    .filter(e => e.estado === 'Pendiente')
-    .reduce((acc, e) => acc + (e.monto || 0), 0);
+    return masterLedger.filter(item => {
+      // 1. Time Filter
+      if (timeFilter === 'hoy') {
+        if (item.rawDate.toDateString() !== now.toDateString()) return false;
+      } else if (timeFilter === 'semana') {
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        if (item.rawDate < startOfWeek) return false;
+      } else if (timeFilter === 'mes') {
+        if (item.rawDate.getMonth() !== now.getMonth() || item.rawDate.getFullYear() !== now.getFullYear()) return false;
+      }
 
-  const ingresosTotales = totalVentas + totalIngresosExtras;
-  const egresosTotales = totalCompras + totalGastosFijosPagados + totalGastosExtras;
-  const balanceGeneral = ingresosTotales - egresosTotales;
+      // 2. Type Filter
+      if (typeFilter !== 'todos') {
+        if (typeFilter === 'Venta' && !item.isIncome) return false;
+        if (typeFilter === 'Compra' && item.recordType !== 'purchase') return false;
+        if (typeFilter === 'Gasto' && item.recordType !== 'expense' && (item.recordType !== 'extra' || item.isIncome)) return false;
+      }
 
-  const filteredProductsForPurchase = products.filter(p =>
-    p.nombre.toLowerCase().includes((productSearchQuery || '').toLowerCase())
-  );
+      // 3. Category Filter
+      if (categoryFilter !== 'todas') {
+        if (!item.categoria.toLowerCase().includes(categoryFilter.toLowerCase())) return false;
+      }
 
-  // Submit Purchase (and Auto-Sync or Create Inventory Product)
+      // 4. Text Search Term
+      if (searchTerm.trim() !== '') {
+        const term = searchTerm.toLowerCase();
+        const prov = (item.proveedorCliente || '').toLowerCase();
+        const cat = (item.categoria || '').toLowerCase();
+        const tipo = (item.tipo || '').toLowerCase();
+        const prod = item.raw.productNombre ? item.raw.productNombre.toLowerCase() : '';
+        if (!prov.includes(term) && !cat.includes(term) && !tipo.includes(term) && !prod.includes(term)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [masterLedger, timeFilter, typeFilter, categoryFilter, searchTerm]);
+
+  // -------------------------------------------------------------
+  // METRICS & STATS CALCULATIONS (Unified)
+  // -------------------------------------------------------------
+  const statsSummary = useMemo(() => {
+    let ingresos = 0;
+    let egresos = 0;
+    let comprasStock = 0;
+    let comprasInsumos = 0;
+    let gastosFijos = 0;
+
+    filteredLedger.forEach(item => {
+      if (item.monto > 0) {
+        ingresos += item.monto;
+      } else {
+        const absMonto = Math.abs(item.monto);
+        egresos += absMonto;
+
+        if (item.recordType === 'purchase') {
+          if (!item.categoria || item.categoria.includes('Mercadería') || item.categoria.includes('Stock')) {
+            comprasStock += absMonto;
+          } else {
+            comprasInsumos += absMonto;
+          }
+        } else if (item.recordType === 'expense') {
+          gastosFijos += absMonto;
+        }
+      }
+    });
+
+    const balance = ingresos - egresos;
+    return { ingresos, egresos, comprasStock, comprasInsumos, gastosFijos, balance };
+  }, [filteredLedger]);
+
+  // Integrated Top Selling Products Stats
+  const topProductsStats = useMemo(() => {
+    const productCounts = {};
+
+    (sales || []).forEach(sale => {
+      const isCalculatorSale = 
+        sale.type === 'Venta Rápida' ||
+        sale.originalOrder === 'Mostrador (Calculadora)' ||
+        sale.cliente === 'Mostrador (Calculadora)';
+
+      if (!isCalculatorSale && sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach(item => {
+          if (!item.product || !item.product.nombre) return;
+          const pName = item.product.nombre;
+          if (pName.startsWith('Item ') || pName.startsWith('Monto ') || item.isCalculator) return;
+
+          let itemQty = parseFloat(item.quantity) || 0;
+          let mult = item.product.tipoVenta === 'grs' ? (itemQty / 100) : itemQty;
+
+          if (!productCounts[pName]) {
+            productCounts[pName] = {
+              quantity: 0,
+              revenue: 0,
+              tipoVenta: item.product.tipoVenta || 'unidad'
+            };
+          }
+          productCounts[pName].quantity += itemQty;
+          productCounts[pName].revenue += (mult * (item.product.precioVenta || 0));
+        });
+      }
+    });
+
+    return Object.entries(productCounts)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+  }, [sales]);
+
+  // Export Table to CSV / Excel
+  const exportToCSV = () => {
+    if (filteredLedger.length === 0) {
+      alert('No hay movimientos en el historial para exportar.');
+      return;
+    }
+
+    const headers = ['Fecha y Hora', 'Tipo', 'Categoria', 'Proveedor / Detalle', 'Monto ($)'];
+    const rows = filteredLedger.map(item => [
+      `"${item.fechaFormatted}"`,
+      `"${item.tipo}"`,
+      `"${item.categoria}"`,
+      `"${item.proveedorCliente.replace(/"/g, '""')}"`,
+      item.monto
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Contabilidad_LaMalila_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Form Submissions
   const handlePurchaseSubmit = async (e) => {
     e.preventDefault();
     const qty = parseFloat(purchaseForm.cantidad) || 0;
@@ -93,7 +299,6 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
     let targetProductId = purchaseForm.productId;
     let pNombre = purchaseForm.productNombre;
 
-    // Si el usuario seleccionó crear un NUEVO producto:
     if (purchaseForm.isNewProduct || !targetProductId) {
       if (!pNombre) {
         alert('Por favor ingresa el nombre del producto.');
@@ -104,7 +309,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
       const newProdData = {
         nombre: pNombre,
         tipoVenta: purchaseForm.tipoVenta || 'unidad',
-        stockActual: qty, // Stock inicial con la compra
+        stockActual: qty,
         stockMinimo: 2,
         costoPromedio: unitCost,
         precioVenta: salePrice,
@@ -136,7 +341,6 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
     setShowPurchaseModal(false);
   };
 
-  // Submit Expense
   const handleExpenseSubmit = async (e) => {
     e.preventDefault();
     if (!expenseForm.concepto || parseFloat(expenseForm.monto) <= 0) {
@@ -144,11 +348,10 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
       return;
     }
     await recordExpense(expenseForm);
-    setExpenseForm({ concepto: '', categoria: 'Servicios', monto: '', estado: 'Pendiente' });
+    setExpenseForm({ concepto: '', categoria: 'Servicios', monto: '', estado: 'Pagado' });
     setShowExpenseModal(false);
   };
 
-  // Submit Extra Movement
   const handleExtraSubmit = async (e) => {
     e.preventDefault();
     if (!extraForm.concepto || parseFloat(extraForm.monto) <= 0) {
@@ -160,288 +363,437 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
     setShowExtraModal(false);
   };
 
-  // -------------------------------------------------------------
-  // 1. DASHBOARD GENERAL
-  // -------------------------------------------------------------
-  if (subView === 'dashboard') {
-    return (
-      <div className="flex flex-col gap-6 animate-fade-in max-w-6xl mx-auto w-full">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-black text-on-surface tracking-tight">Dashboard Contable</h2>
-            <p className="text-xs text-secondary">Control financiero de compras, ventas y movimientos del negocio</p>
-          </div>
-          <span className="bg-primary-container/40 text-on-primary-container text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Sistema Contable Activo</span>
-          </span>
+  const handleDeleteRecord = async (item) => {
+    if (window.confirm(`¿Estás seguro de eliminar este registro (${item.tipo}: ${item.proveedorCliente})?`)) {
+      if (item.recordType === 'purchase') {
+        await deletePurchase(item.originalId);
+      } else if (item.recordType === 'expense') {
+        await deleteExpense(item.originalId);
+      } else if (item.recordType === 'extra') {
+        await deleteExtraMovement(item.originalId);
+      } else if (item.recordType === 'sale' && deleteSale) {
+        await deleteSale(item.originalId);
+      }
+    }
+  };
+
+  const filteredProductsForPurchase = products.filter(p =>
+    p.nombre.toLowerCase().includes((productSearchQuery || '').toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col gap-6 animate-fade-in max-w-7xl mx-auto w-full">
+      {/* Header Dashboard & Action Controls */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl border border-surface-container-low shadow-sm">
+        <div>
+          <h2 className="text-2xl font-black text-on-surface tracking-tight flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-2xl">account_balance</span>
+            <span>Dashboard Contable Unificado</span>
+          </h2>
+          <p className="text-xs text-secondary font-medium">Control financiero integral de Compras, Ventas, Gastos y Estadísticas</p>
         </div>
 
-        {/* Metrics Overview Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-container-low border-l-4 border-l-emerald-600 flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-center text-secondary mb-1">
-                <span className="text-xs font-bold uppercase tracking-wider">Ingresos Totales</span>
-                <span className="material-symbols-outlined text-emerald-600">trending_up</span>
-              </div>
-              <h3 className="text-3xl font-black text-on-surface">${formatPrice(ingresosTotales)}</h3>
-            </div>
-            <p className="text-[11px] text-emerald-700 font-semibold mt-3">
-              Ventas (${formatPrice(totalVentas)}) + Extras (${formatPrice(totalIngresosExtras)})
-            </p>
-          </div>
-
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-container-low border-l-4 border-l-error flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-center text-secondary mb-1">
-                <span className="text-xs font-bold uppercase tracking-wider">Egresos (Compras/Pagos)</span>
-                <span className="material-symbols-outlined text-error">trending_down</span>
-              </div>
-              <h3 className="text-3xl font-black text-on-surface">${formatPrice(egresosTotales)}</h3>
-            </div>
-            <p className="text-[11px] text-error font-semibold mt-3">
-              Compras (${formatPrice(totalCompras)}) + Gastos (${formatPrice(totalGastosFijosPagados)}) + Extras (${formatPrice(totalGastosExtras)})
-            </p>
-          </div>
-
-          <div className={`rounded-3xl p-6 shadow-md flex flex-col justify-between text-white ${
-            balanceGeneral >= 0 
-              ? 'bg-gradient-to-br from-emerald-950 to-primary border border-white/10' 
-              : 'bg-gradient-to-br from-red-950 to-error border border-white/10'
-          }`}>
-            <div>
-              <div className="flex justify-between items-center text-white/80 mb-1">
-                <span className="text-xs font-bold uppercase tracking-wider">Balance General</span>
-                <span className="material-symbols-outlined">{balanceGeneral >= 0 ? 'account_balance_wallet' : 'warning'}</span>
-              </div>
-              <h3 className="text-3xl font-black tracking-tight">${formatPrice(balanceGeneral)}</h3>
-            </div>
-            <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold w-fit mt-3 backdrop-blur-xs">
-              {balanceGeneral >= 0 ? '✓ Flujo neto positivo' : '⚠ Flujo neto negativo'}
-            </span>
-          </div>
-        </div>
-
-        {/* Navigation Grid (4 Sub-Sections matching mockup) */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => setSubView('compras')}
-            className="bg-white hover:bg-surface-container-low p-5 rounded-2xl border border-surface-container-highest flex flex-col items-center text-center gap-2 transition-all hover:border-primary active:scale-95 shadow-xs"
+            onClick={() => setShowStats(!showStats)}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs border ${
+              showStats ? 'bg-primary text-white border-primary' : 'bg-surface-container-low text-primary border-primary-container hover:bg-primary-container/20'
+            }`}
           >
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl">local_shipping</span>
-            </div>
-            <div>
-              <h4 className="font-bold text-on-surface text-base">Compras</h4>
-              <p className="text-[11px] text-secondary">Proveedores & Stock</p>
-            </div>
+            <span className="material-symbols-outlined text-base">insights</span>
+            <span>{showStats ? 'Ocultar Stats' : '📊 Ver Stats de Productos'}</span>
           </button>
-
-          <button
-            onClick={() => setSubView('ventas')}
-            className="bg-white hover:bg-surface-container-low p-5 rounded-2xl border border-surface-container-highest flex flex-col items-center text-center gap-2 transition-all hover:border-primary active:scale-95 shadow-xs"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-800 flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl">receipt</span>
-            </div>
-            <div>
-              <h4 className="font-bold text-on-surface text-base">Ventas</h4>
-              <p className="text-[11px] text-secondary">Historial de Ventas</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setSubView('pagos')}
-            className="bg-white hover:bg-surface-container-low p-5 rounded-2xl border border-surface-container-highest flex flex-col items-center text-center gap-2 transition-all hover:border-primary active:scale-95 shadow-xs"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl">payments</span>
-            </div>
-            <div>
-              <h4 className="font-bold text-on-surface text-base">Pagos</h4>
-              <p className="text-[11px] text-secondary">Gastos Fijos & Servicios</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setSubView('extras')}
-            className="bg-white hover:bg-surface-container-low p-5 rounded-2xl border border-surface-container-highest flex flex-col items-center text-center gap-2 transition-all hover:border-primary active:scale-95 shadow-xs"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center">
-              <span className="material-symbols-outlined text-2xl">more_horiz</span>
-            </div>
-            <div>
-              <h4 className="font-bold text-on-surface text-base">Extras</h4>
-              <p className="text-[11px] text-secondary">Otros Movimientos</p>
-            </div>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // 2. SECCIÓN DE COMPRAS (PROVEEDORES Y SYNC A INVENTARIO)
-  // -------------------------------------------------------------
-  if (subView === 'compras') {
-    return (
-      <div className="flex flex-col gap-6 animate-fade-in max-w-4xl mx-auto w-full">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-surface-container-low shadow-sm">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSubView('dashboard')}
-              className="p-2.5 rounded-full bg-surface-container-low hover:bg-surface-container-high text-secondary transition-colors"
-            >
-              <span className="material-symbols-outlined text-xl">arrow_back</span>
-            </button>
-            <div>
-              <h2 className="text-xl font-bold text-on-surface">Control de Compras (Proveedores)</h2>
-              <p className="text-xs text-secondary">Gestión de compras con sincronización automática de stock</p>
-            </div>
-          </div>
 
           <button
             onClick={() => setShowPurchaseModal(true)}
-            className="bg-primary text-white font-bold px-5 py-2.5 rounded-full text-xs shadow-md hover:bg-surface-tint flex items-center gap-2 transition-transform active:scale-95"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
           >
-            <span className="material-symbols-outlined text-base">add</span>
-            <span>Registrar Compra</span>
+            <span className="material-symbols-outlined text-base">shopping_bag</span>
+            <span>+ Compra Mercadería</span>
+          </button>
+
+          <button
+            onClick={() => setShowExpenseModal(true)}
+            className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined text-base">receipt_long</span>
+            <span>+ Gasto / Servicio</span>
+          </button>
+
+          <button
+            onClick={() => setShowExtraModal(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined text-base">more_horiz</span>
+            <span>+ Movimiento Extra</span>
           </button>
         </div>
+      </div>
 
-        {/* Metric Summary */}
-        <div className="bg-white p-5 rounded-2xl border border-surface-container-low shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="border-b sm:border-b-0 sm:border-r border-surface-container-highest pb-3 sm:pb-0 sm:pr-4">
-            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block">📦 Stock / Mercadería</span>
-            <span className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1 block">${formatPrice(totalComprasMercaderia)}</span>
-            <span className="text-[11px] text-secondary">Suma al stock de reventa</span>
-          </div>
+      {/* Metrics Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-container-low border-l-4 border-l-emerald-600 flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-amber-900 uppercase tracking-wider block">🛍️ Insumos & Gastos Extras</span>
-            <span className="text-2xl sm:text-3xl font-black text-amber-800 mt-1 block">${formatPrice(totalComprasInsumos)}</span>
-            <span className="text-[11px] text-secondary">Cinta, bolsas, film, papelería</span>
+            <div className="flex justify-between items-center text-secondary mb-1">
+              <span className="text-xs font-bold uppercase tracking-wider">Ingresos Totales (Ventas)</span>
+              <span className="material-symbols-outlined text-emerald-600">trending_up</span>
+            </div>
+            <h3 className="text-3xl font-black text-on-surface">${formatPrice(statsSummary.ingresos)}</h3>
+          </div>
+          <span className="text-[11px] text-emerald-800 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 mt-3 w-fit">
+            Ventas Registradas
+          </span>
+        </div>
+
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-container-low border-l-4 border-l-rose-600 flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-center text-secondary mb-1">
+              <span className="text-xs font-bold uppercase tracking-wider">Egresos Totales (Compras/Gastos)</span>
+              <span className="material-symbols-outlined text-rose-600">trending_down</span>
+            </div>
+            <h3 className="text-3xl font-black text-on-surface">${formatPrice(statsSummary.egresos)}</h3>
+          </div>
+          <div className="text-[11px] text-rose-900 font-bold flex flex-wrap gap-1 mt-3">
+            <span className="bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">Stock: ${formatPrice(statsSummary.comprasStock)}</span>
+            <span className="bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Insumos/Gastos: ${formatPrice(statsSummary.comprasInsumos + statsSummary.gastosFijos)}</span>
           </div>
         </div>
 
-        {/* Purchases List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-surface-container-low overflow-hidden">
-          <div className="p-4 bg-surface-container-low border-b font-bold text-xs text-secondary uppercase tracking-wider grid grid-cols-12 gap-2 items-center">
-            <div className="col-span-3">Producto & Cantidad</div>
-            <div className="col-span-3">Categoría de Compra</div>
-            <div className="col-span-3">Proveedor & Fecha</div>
-            <div className="col-span-2 text-right">Total Pagado</div>
-            <div className="col-span-1 text-right">Acción</div>
+        <div className={`rounded-3xl p-6 shadow-md flex flex-col justify-between text-white ${
+          statsSummary.balance >= 0 
+            ? 'bg-gradient-to-br from-emerald-950 to-primary border border-white/10' 
+            : 'bg-gradient-to-br from-red-950 to-error border border-white/10'
+        }`}>
+          <div>
+            <div className="flex justify-between items-center text-white/80 mb-1">
+              <span className="text-xs font-bold uppercase tracking-wider">Balance General Neto</span>
+              <span className="material-symbols-outlined">{statsSummary.balance >= 0 ? 'account_balance_wallet' : 'warning'}</span>
+            </div>
+            <h3 className="text-3xl font-black tracking-tight">${formatPrice(statsSummary.balance)}</h3>
+          </div>
+          <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold w-fit mt-3 backdrop-blur-xs">
+            {statsSummary.balance >= 0 ? '✓ Flujo neto positivo' : '⚠ Flujo neto negativo'}
+          </span>
+        </div>
+      </div>
+
+      {/* Integrated Stats Section (Collapsible) */}
+      {showStats && (
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-container-low animate-fade-in flex flex-col gap-4">
+          <div className="flex justify-between items-center border-b pb-3">
+            <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary">insights</span>
+              <span>Top 10 Productos Más Vendidos</span>
+            </h3>
+            <span className="text-xs text-secondary font-semibold">Basado en volumen de recaudación de ventas</span>
           </div>
 
-          <div className="divide-y divide-surface-container-highest">
-            {purchases.length === 0 ? (
-              <div className="p-12 text-center text-secondary">
-                <p className="font-semibold text-sm">No hay compras registradas.</p>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {topProductsStats.length === 0 ? (
+              <p className="text-xs text-secondary italic col-span-2">No hay datos suficientes de ventas detalladas para generar estadísticas.</p>
             ) : (
-              purchases.map(p => {
-                const cat = p.categoria || 'Mercadería (Stock)';
-                return (
-                  <div key={p.id} className="p-4 grid grid-cols-12 gap-2 items-center hover:bg-surface-container-low transition-colors text-sm">
-                    <div className="col-span-3">
-                      <h4 className="font-bold text-on-surface">{p.productNombre}</h4>
-                      <span className="text-xs font-semibold text-primary bg-primary-container/30 px-2 py-0.5 rounded-md inline-block mt-0.5">
-                        Cantidad: {p.cantidad}
+              topProductsStats.map((item, idx) => (
+                <div key={item.name} className="flex justify-between items-center bg-surface-container-low p-3 rounded-2xl border border-surface-container-highest">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-xl bg-primary text-white font-black text-xs flex items-center justify-center">
+                      #{idx + 1}
+                    </span>
+                    <div>
+                      <h4 className="font-bold text-on-surface text-sm">{item.name}</h4>
+                      <span className="text-xs text-secondary font-semibold">
+                        Vendidos: {item.quantity} {item.tipoVenta === 'grs' ? 'g' : item.tipoVenta}
                       </span>
                     </div>
-
-                    <div className="col-span-3">
-                      <select
-                        value={cat}
-                        onChange={(e) => updatePurchaseCategory && updatePurchaseCategory(p.id, e.target.value)}
-                        className={`text-xs font-extrabold px-2.5 py-1.5 rounded-xl border outline-none cursor-pointer transition-all ${
-                          cat.includes('Insumos')
-                            ? 'bg-amber-100/90 text-amber-950 border-amber-300 shadow-2xs'
-                            : cat.includes('Extras')
-                            ? 'bg-purple-100/90 text-purple-950 border-purple-300 shadow-2xs'
-                            : 'bg-emerald-100/90 text-emerald-950 border-emerald-300 shadow-2xs'
-                        }`}
-                        title="Toca para cambiar la categoría de esta compra"
-                      >
-                        <option value="Mercadería (Stock)">📦 Mercadería (Stock)</option>
-                        <option value="Insumos / Embalaje">🛍️ Insumos / Embalaje</option>
-                        <option value="Gastos Extras">🛒 Gastos Extras</option>
-                      </select>
-                    </div>
-
-                    <div className="col-span-3 text-xs text-secondary flex flex-col gap-0.5">
-                      <span className="font-semibold text-on-surface">🏢 {p.proveedor}</span>
-                      <span>📅 {new Date(p.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-
-                    <div className="col-span-2 text-right">
-                      <span className="font-black text-on-surface text-base block">${formatPrice(p.precioTotal)}</span>
-                      <span className="text-[10px] text-secondary">Costo unit: ${formatPrice(p.costoUnitario)}</span>
-                    </div>
-
-                    <div className="col-span-1 text-right">
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`¿Eliminar el registro de compra de "${p.productNombre}" ($${formatPrice(p.precioTotal)})?`)) {
-                            deletePurchase(p.id);
-                          }
-                        }}
-                        className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
-                        title="Eliminar compra"
-                      >
-                        <span className="material-symbols-outlined text-lg">delete</span>
-                      </button>
-                    </div>
                   </div>
-                );
-              })
+                  <span className="font-black text-primary text-sm">${formatPrice(item.revenue)}</span>
+                </div>
+              ))
             )}
           </div>
         </div>
+      )}
 
-        {/* Modal Registrar Compra */}
-        {showPurchaseModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in">
-            <form onSubmit={handlePurchaseSubmit} className="bg-white rounded-3xl p-6 w-full max-w-md flex flex-col gap-4 shadow-xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center border-b pb-3 sticky top-0 bg-white z-10">
-                <h3 className="text-xl font-bold text-primary flex items-center gap-2">
-                  <span className="material-symbols-outlined">shopping_bag</span>
-                  <span>Registrar Compra de Mercadería</span>
-                </h3>
-                <button type="button" onClick={() => setShowPurchaseModal(false)} className="text-secondary font-bold hover:text-on-surface">✕</button>
-              </div>
+      {/* Excel Table Filter Toolbar */}
+      <div className="bg-white p-4 rounded-2xl border border-surface-container-low shadow-sm flex flex-col md:flex-row gap-3 justify-between items-stretch md:items-center">
+        {/* Search Input */}
+        <div className="relative flex-grow max-w-md">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-lg">
+            search
+          </span>
+          <input
+            type="text"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-surface-container-low text-xs font-bold text-on-surface"
+            placeholder="Buscar por proveedor, cliente, concepto o producto..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
+        {/* Dropdown Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Time Filter */}
+          <select
+            className="bg-surface-container-low border border-surface-container-highest rounded-xl px-3 py-2.5 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer"
+            value={timeFilter}
+            onChange={(e) => setTimeFilter(e.target.value)}
+          >
+            <option value="hoy">📅 Hoy</option>
+            <option value="semana">📅 Esta Semana</option>
+            <option value="mes">📅 Este Mes</option>
+            <option value="todo">📅 Todo el Historial</option>
+          </select>
+
+          {/* Type Filter */}
+          <select
+            className="bg-surface-container-low border border-surface-container-highest rounded-xl px-3 py-2.5 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+          >
+            <option value="todos">🏷️ Todos los Tipos</option>
+            <option value="Venta">🟢 Solo Ventas</option>
+            <option value="Compra">🔴 Solo Compras</option>
+            <option value="Gasto">📙 Solo Gastos / Extras</option>
+          </select>
+
+          {/* Category Filter */}
+          <select
+            className="bg-surface-container-low border border-surface-container-highest rounded-xl px-3 py-2.5 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="todas">📁 Todas las Categorías</option>
+            <option value="Mercadería">📦 Mercadería (Stock)</option>
+            <option value="Insumos">🛍️ Insumos / Embalaje</option>
+            <option value="Gastos">🛒 Gastos Extras</option>
+            <option value="Servicios">💡 Servicios / Alquiler</option>
+            <option value="Venta">🛒 Ventas</option>
+          </select>
+
+          {/* Export to Excel CSV Button */}
+          <button
+            onClick={exportToCSV}
+            className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 px-3.5 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+            title="Descargar este historial en formato Excel / CSV"
+          >
+            <span className="material-symbols-outlined text-base text-emerald-700">download</span>
+            <span>Exportar a Excel</span>
+          </button>
+        </div>
+      </div>
+
+      {/* SINGLE UNIFIED EXCEL-LIKE TABLE */}
+      <div className="bg-white rounded-3xl shadow-sm border border-surface-container-low overflow-hidden">
+        <div className="px-6 py-4 bg-surface-container-low border-b border-surface-container-highest flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-xl">table_chart</span>
+            <h3 className="font-extrabold text-on-surface text-base">Historial Único Unificado de Transacciones</h3>
+          </div>
+          <span className="text-xs font-bold text-secondary bg-white px-3 py-1 rounded-full border border-surface-container-highest">
+            {filteredLedger.length} movimientos encontrados
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-surface-container-low/70 border-b border-surface-container-highest text-[11px] font-bold text-secondary uppercase tracking-wider">
+                <th className="py-3.5 px-4 sm:px-6">Fecha y Hora</th>
+                <th className="py-3.5 px-3">Tipo</th>
+                <th className="py-3.5 px-3">Categoría</th>
+                <th className="py-3.5 px-3">Proveedor / Detalle</th>
+                <th className="py-3.5 px-3 text-right">Total Pagado / Cobrado</th>
+                <th className="py-3.5 px-4 sm:px-6 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-container-highest text-xs font-semibold">
+              {filteredLedger.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-12 text-center text-secondary italic">
+                    No se encontraron transacciones que coincidan con los filtros seleccionados.
+                  </td>
+                </tr>
+              ) : (
+                filteredLedger.map((item) => (
+                  <tr key={item.id} className="hover:bg-surface-container-low/60 transition-colors">
+                    {/* Fecha y Hora */}
+                    <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap text-on-surface font-bold">
+                      {item.fechaFormatted}
+                    </td>
+
+                    {/* Tipo Badge */}
+                    <td className="py-3.5 px-3 whitespace-nowrap">
+                      <span className={`px-2.5 py-1 rounded-lg border font-extrabold text-[11px] inline-flex items-center gap-1 shadow-2xs ${item.tipoBadgeColor}`}>
+                        <span className="material-symbols-outlined text-xs">{item.tipoIcon}</span>
+                        <span>{item.tipo}</span>
+                      </span>
+                    </td>
+
+                    {/* Categoría (Editable for Purchases) */}
+                    <td className="py-3.5 px-3 whitespace-nowrap">
+                      {item.recordType === 'purchase' ? (
+                        <select
+                          className="bg-white border border-surface-container-highest rounded-lg px-2 py-1 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer shadow-2xs"
+                          value={item.categoria}
+                          onChange={(e) => updatePurchaseCategory && updatePurchaseCategory(item.originalId, e.target.value)}
+                        >
+                          <option value="📦 Mercadería (Stock)">📦 Mercadería (Stock)</option>
+                          <option value="🛍️ Insumos / Embalaje (Bolsas, Cinta, Film)">🛍️ Insumos / Embalaje</option>
+                          <option value="🛒 Gastos Extras">🛒 Gastos Extras</option>
+                          <option value="💡 Servicios / Alquiler">💡 Servicios / Alquiler</option>
+                        </select>
+                      ) : (
+                        <span className="bg-surface-container-high text-on-surface px-2.5 py-1 rounded-lg text-xs font-bold inline-block border border-surface-container-highest">
+                          {item.categoria}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Proveedor / Detalle */}
+                    <td className="py-3.5 px-3 font-bold text-on-surface">
+                      <div className="flex items-center gap-1.5">
+                        <span>{item.proveedorCliente}</span>
+                        {item.raw.productNombre && (
+                          <span className="text-[11px] font-semibold text-secondary">({item.raw.productNombre})</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Total Pagado / Cobrado ($) */}
+                    <td className="py-3.5 px-3 text-right whitespace-nowrap">
+                      <span className={`font-black text-sm block ${item.monto > 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {item.monto > 0 ? '+' : ''}${formatPrice(item.monto)}
+                      </span>
+                    </td>
+
+                    {/* Acciones */}
+                    <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
+                      <div className="flex justify-end items-center gap-1">
+                        <button
+                          onClick={() => setSelectedTransactionDetail(item)}
+                          className="p-1.5 text-secondary hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors"
+                          title="Ver detalle completo"
+                        >
+                          <span className="material-symbols-outlined text-lg">visibility</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRecord(item)}
+                          className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"
+                          title="Eliminar este registro"
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal Detalle de Transacción */}
+      {selectedTransactionDetail && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-surface-container-highest flex flex-col gap-4">
+            <div className="flex justify-between items-center border-b pb-3">
               <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Categoría de la Compra *</label>
-                <select 
-                  required
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-extrabold text-on-surface"
-                  value={purchaseForm.categoria}
-                  onChange={e => setPurchaseForm({ ...purchaseForm, categoria: e.target.value })}
-                >
-                  <option value="Mercadería (Stock)">📦 Mercadería (Stock de Reventa)</option>
-                  <option value="Insumos / Embalaje">🛍️ Insumos / Embalaje (Bolsas, Cinta, Film)</option>
-                  <option value="Gastos Extras">🛒 Gastos Extras / Varios del Local</option>
-                </select>
-                <p className="text-[11px] font-semibold text-secondary mt-1">
-                  {purchaseForm.categoria === 'Mercadería (Stock)' 
-                    ? '✨ Esta compra sumará stock al inventario.' 
-                    : 'ℹ️ Insumos o gastos extras NO modifican el stock de reventa.'}
-                </p>
+                <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">receipt</span>
+                  <span>Detalle de Transacción</span>
+                </h3>
+                <p className="text-xs text-secondary font-semibold mt-0.5">{selectedTransactionDetail.fechaFormatted}</p>
+              </div>
+              <button
+                onClick={() => setSelectedTransactionDetail(null)}
+                className="text-secondary hover:text-on-surface font-bold text-base p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 text-xs">
+              <div className="bg-surface-container-low p-3.5 rounded-2xl border border-surface-container-highest flex justify-between items-center font-bold">
+                <span className="text-secondary">Tipo:</span>
+                <span className={`px-2.5 py-0.5 rounded-md border text-xs font-black ${selectedTransactionDetail.tipoBadgeColor}`}>
+                  {selectedTransactionDetail.tipo}
+                </span>
               </div>
 
-              {/* Buscador interactivo con Autocompletado de Producto */}
+              <div className="bg-surface-container-low p-3.5 rounded-2xl border border-surface-container-highest flex justify-between items-center font-bold">
+                <span className="text-secondary">Categoría:</span>
+                <span className="text-on-surface">{selectedTransactionDetail.categoria}</span>
+              </div>
+
+              <div className="bg-surface-container-low p-3.5 rounded-2xl border border-surface-container-highest flex justify-between items-center font-bold">
+                <span className="text-secondary">Proveedor / Cliente / Detalle:</span>
+                <span className="text-on-surface">{selectedTransactionDetail.proveedorCliente}</span>
+              </div>
+
+              <div className="bg-surface-container-low p-3.5 rounded-2xl border border-surface-container-highest flex justify-between items-center font-bold text-sm">
+                <span className="text-secondary">Monto Total:</span>
+                <span className={`font-black text-base ${selectedTransactionDetail.monto > 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {selectedTransactionDetail.monto > 0 ? '+' : ''}${formatPrice(selectedTransactionDetail.monto)}
+                </span>
+              </div>
+
+              {/* Items Breakdown if Sale */}
+              {selectedTransactionDetail.recordType === 'sale' && selectedTransactionDetail.raw?.items && (
+                <div className="border-t pt-2 mt-1">
+                  <span className="font-bold text-on-surface block mb-2">Desglose de Productos Vendidos:</span>
+                  <div className="bg-surface-container-low rounded-xl p-3 divide-y divide-surface-container-highest">
+                    {selectedTransactionDetail.raw.items.map((it, idx) => (
+                      <div key={idx} className="py-1.5 flex justify-between font-semibold">
+                        <span>{it.product?.nombre || 'Producto'} x {it.quantity}</span>
+                        <span className="font-bold text-on-surface">${formatPrice((it.quantity * (it.product?.precioVenta || 0)))}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t pt-3 flex justify-end">
+              <button
+                onClick={() => setSelectedTransactionDetail(null)}
+                className="px-5 py-2.5 bg-primary text-white font-bold rounded-xl text-xs shadow-sm hover:bg-surface-tint"
+              >
+                Cerrar Detalle
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Registrar Compra */}
+      {showPurchaseModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <form onSubmit={handlePurchaseSubmit} className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-surface-container-highest flex flex-col gap-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-700">shopping_bag</span>
+                <span>Registrar Compra de Mercadería</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPurchaseModal(false)}
+                className="text-secondary hover:text-on-surface font-bold text-base p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
               <div className="relative">
-                <label className="block text-xs font-bold text-secondary mb-1">Buscar o Escribir Nombre de Producto *</label>
+                <label className="block text-xs font-bold text-secondary mb-1">Buscar Producto o Crear Nuevo *</label>
                 <div className="relative">
                   <input
                     type="text"
                     required
-                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 pr-10 text-sm outline-none focus:border-primary font-bold text-on-surface"
-                    placeholder="🔍 Escribe para buscar (Ej: Tomate, Manzana, Bolsa...)"
+                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 pr-8 text-sm outline-none focus:border-primary font-bold text-on-surface"
+                    placeholder="🔍 Escribir nombre del producto..."
                     value={productSearchQuery}
-                    onChange={(e) => {
+                    onChange={e => {
                       const val = e.target.value;
                       setProductSearchQuery(val);
                       setShowProductDropdown(true);
@@ -474,7 +826,6 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                   )}
                 </div>
 
-                {/* Autocomplete Dropdown List */}
                 {showProductDropdown && (
                   <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-surface-container-highest rounded-2xl shadow-xl z-30 max-h-60 overflow-y-auto divide-y divide-surface-container-highest">
                     {filteredProductsForPurchase.length === 0 ? (
@@ -505,7 +856,6 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                       ))
                     )}
 
-                    {/* Button option to create a brand new product */}
                     <div
                       onClick={() => {
                         const newName = productSearchQuery.trim() || 'Nuevo Producto';
@@ -527,129 +877,25 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                 )}
               </div>
 
-              {/* Tarjeta de Sincronización en Vivo con Inventario */}
-              {(() => {
-                const selProd = products.find(p => p.id === purchaseForm.productId || (p.nombre && p.nombre.toLowerCase() === purchaseForm.productNombre.toLowerCase()));
-                if (!selProd || purchaseForm.isNewProduct) return null;
-
-                const qtyInput = parseFloat(purchaseForm.cantidad) || 0;
-                const totalInput = parseFloat(purchaseForm.precioTotal) || 0;
-                const newUnitCost = qtyInput > 0 && totalInput > 0 ? Math.round(totalInput / qtyInput) : 0;
-                const projectedStock = selProd.stockActual + qtyInput;
-                const projectedCost = projectedStock > 0 && newUnitCost > 0
-                  ? Math.round(((selProd.stockActual * selProd.costoPromedio) + (qtyInput * newUnitCost)) / projectedStock)
-                  : selProd.costoPromedio;
-
-                return (
-                  <div className="bg-emerald-50/90 border border-emerald-200 p-3.5 rounded-2xl flex flex-col gap-2 animate-fade-in shadow-2xs">
-                    <div className="flex items-center justify-between font-extrabold text-emerald-950 text-xs">
-                      <span className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-base text-emerald-700">sync</span>
-                        <span>Sincronizado con Inventario</span>
-                      </span>
-                      <span className="bg-white px-2 py-0.5 rounded-md border border-emerald-300 font-bold text-emerald-800">
-                        Stock Actual: {selProd.stockActual} {selProd.tipoVenta}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-emerald-200/60">
-                      <div>
-                        <span className="text-[10px] font-bold text-emerald-900/70 uppercase block">Costo Promedio Actual:</span>
-                        <span className="font-extrabold text-emerald-950 text-sm">${formatPrice(selProd.costoPromedio)}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-emerald-900/70 uppercase block">Precio Venta Actual:</span>
-                        <span className="font-black text-primary text-sm">${formatPrice(selProd.precioVenta)}</span>
-                      </div>
-                    </div>
-
-                    {newUnitCost > 0 && (
-                      <div className="bg-white/90 p-2 rounded-xl border border-emerald-300 text-[11px] text-emerald-950 font-bold flex flex-col gap-0.5 mt-0.5">
-                        <div className="flex justify-between">
-                          <span>Costo Unitario de esta compra:</span>
-                          <span className="font-black text-emerald-700">${formatPrice(newUnitCost)}</span>
-                        </div>
-                        <div className="flex justify-between text-primary">
-                          <span>Nuevo Costo Promedio Proyectado:</span>
-                          <span className="font-black">${formatPrice(projectedCost)} / {selProd.tipoVenta}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {purchaseForm.isNewProduct && (
-                <div className="bg-primary-container/20 border border-primary-container p-3.5 rounded-2xl flex flex-col gap-3 animate-fade-in">
-                  <span className="text-xs font-bold text-primary flex items-center gap-1">
-                    <span className="material-symbols-outlined text-base">add_box</span>
-                    <span>Datos para el Nuevo Producto en Inventario:</span>
-                  </span>
-
-                  <div>
-                    <label className="block text-xs font-bold text-secondary mb-1">Nombre del Nuevo Producto *</label>
-                    <input
-                      required
-                      className="w-full bg-white border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
-                      placeholder="Ej: Aceite de Girasol 1L / Mermelada"
-                      value={purchaseForm.productNombre}
-                      onChange={e => setPurchaseForm({ ...purchaseForm, productNombre: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-bold text-secondary mb-1">Tipo de Venta</label>
-                      <select
-                        className="w-full bg-white border border-surface-container-highest rounded-xl p-2.5 text-xs outline-none focus:border-primary font-bold text-on-surface"
-                        value={purchaseForm.tipoVenta}
-                        onChange={e => setPurchaseForm({ ...purchaseForm, tipoVenta: e.target.value })}
-                      >
-                        <option value="unidad">Por Unidad (un)</option>
-                        <option value="kg">Por Kilo (kg)</option>
-                        <option value="grs">Por Gramos (100g)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-secondary mb-1">Precio Venta ($)</label>
-                      <input
-                        type="number"
-                        className="w-full bg-white border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-primary"
-                        placeholder="Ej: 3000"
-                        value={purchaseForm.precioVenta}
-                        onChange={e => setPurchaseForm({ ...purchaseForm, precioVenta: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div>
                 <label className="block text-xs font-bold text-secondary mb-1">Proveedor / Distribuidora</label>
                 <input
-                  required
-                  list="suppliers-list"
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-on-surface"
+                  type="text"
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
                   placeholder="Ej: Huerta San José / Mercado Abasto"
                   value={purchaseForm.proveedor}
                   onChange={e => setPurchaseForm({ ...purchaseForm, proveedor: e.target.value })}
                 />
-                <datalist id="suppliers-list">
-                  {(contactsData?.suppliers || []).map(s => (
-                    <option key={s.id} value={s.nombre}>{s.rubro ? `${s.rubro} - ${s.contacto}` : s.contacto}</option>
-                  ))}
-                </datalist>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-secondary mb-1">Cantidad Comprada</label>
+                  <label className="block text-xs font-bold text-secondary mb-1">Cantidad Comprada *</label>
                   <input
-                    required
                     type="number"
-                    step="0.01"
-                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold"
+                    step="any"
+                    required
+                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
                     placeholder="Ej: 10"
                     value={purchaseForm.cantidad}
                     onChange={e => setPurchaseForm({ ...purchaseForm, cantidad: e.target.value })}
@@ -657,11 +903,11 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-secondary mb-1">Precio TOTAL Pagado ($)</label>
+                  <label className="block text-xs font-bold text-amber-900 mb-1">Precio TOTAL Pagado ($) *</label>
                   <input
-                    required
                     type="number"
-                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-primary"
+                    required
+                    className="w-full bg-amber-50 border border-amber-300 rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-amber-950"
                     placeholder="Ej: 15000"
                     value={purchaseForm.precioTotal}
                     onChange={e => setPurchaseForm({ ...purchaseForm, precioTotal: e.target.value })}
@@ -669,458 +915,192 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                 </div>
               </div>
 
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-xs text-emerald-900 font-semibold flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-700">bolt</span>
-                <span>Al guardar, el stock del inventario y su costo unitario promedio se actualizarán automáticamente.</span>
-              </div>
-
-              <div className="flex justify-end gap-2 mt-2">
-                <button type="button" onClick={() => setShowPurchaseModal(false)} className="px-4 py-2.5 rounded-xl border text-secondary font-semibold text-sm">Cancelar</button>
-                <button type="submit" className="px-5 py-2.5 bg-primary text-white font-bold text-sm rounded-xl shadow-md">Confirmar Compra</button>
-              </div>
-            </form>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // 3. SECCIÓN DE PAGOS Y GASTOS FIJOS
-  // -------------------------------------------------------------
-  if (subView === 'pagos') {
-    return (
-      <div className="flex flex-col gap-6 animate-fade-in max-w-4xl mx-auto w-full">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-surface-container-low shadow-sm">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSubView('dashboard')}
-              className="p-2.5 rounded-full bg-surface-container-low hover:bg-surface-container-high text-secondary transition-colors"
-            >
-              <span className="material-symbols-outlined text-xl">arrow_back</span>
-            </button>
-            <div>
-              <h2 className="text-xl font-bold text-on-surface">Gestión de Pagos y Gastos Fijos</h2>
-              <p className="text-xs text-secondary">Control de egresos por alquiler, servicios, sueldos e impuestos</p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowExpenseModal(true)}
-            className="bg-primary text-white font-bold px-5 py-2.5 rounded-full text-xs shadow-md hover:bg-surface-tint flex items-center gap-2 transition-transform active:scale-95"
-          >
-            <span className="material-symbols-outlined text-base">add</span>
-            <span>Nuevo Gasto</span>
-          </button>
-        </div>
-
-        {/* Metrics Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-surface-container-low border-t-4 border-t-error shadow-sm flex justify-between items-center">
-            <div>
-              <span className="text-xs font-bold text-error uppercase tracking-wider block">Egresos Pendientes</span>
-              <span className="text-2xl font-black text-error mt-1">${formatPrice(totalGastosFijosPendientes)}</span>
-            </div>
-            <span className="material-symbols-outlined text-error text-3xl">warning</span>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-surface-container-low border-t-4 border-t-emerald-600 shadow-sm flex justify-between items-center">
-            <div>
-              <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block">Egresos Pagados</span>
-              <span className="text-2xl font-black text-emerald-700 mt-1">${formatPrice(totalGastosFijosPagados)}</span>
-            </div>
-            <span className="material-symbols-outlined text-emerald-600 text-3xl">task_alt</span>
-          </div>
-        </div>
-
-        {/* Expenses List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-surface-container-low overflow-hidden">
-          <div className="p-4 bg-surface-container-low border-b font-bold text-xs text-secondary uppercase tracking-wider grid grid-cols-12 gap-2">
-            <div className="col-span-4">Concepto & Categoría</div>
-            <div className="col-span-4">Estado</div>
-            <div className="col-span-3 text-right">Monto</div>
-            <div className="col-span-1 text-right">Acción</div>
-          </div>
-
-          <div className="divide-y divide-surface-container-highest">
-            {expenses.length === 0 ? (
-              <div className="p-12 text-center text-secondary">
-                <p className="font-semibold text-sm">No hay gastos fijos registrados.</p>
-              </div>
-            ) : (
-              expenses.map(e => (
-                <div key={e.id} className="p-4 grid grid-cols-12 gap-2 items-center hover:bg-surface-container-low transition-colors text-sm">
-                  <div className="col-span-4">
-                    <h4 className="font-bold text-on-surface">{e.concepto}</h4>
-                    <span className="text-xs font-semibold text-secondary bg-surface-container-high px-2 py-0.5 rounded-md inline-block mt-0.5">
-                      {e.categoria}
-                    </span>
-                  </div>
-
-                  <div className="col-span-4">
-                    <button
-                      onClick={() => toggleExpenseStatus(e)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all active:scale-95 ${
-                        e.estado === 'Pagado'
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                          : 'bg-amber-100 text-amber-900 border border-amber-300'
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-sm">
-                        {e.estado === 'Pagado' ? 'check_circle' : 'pending'}
-                      </span>
-                      <span>{e.estado}</span>
-                    </button>
-                  </div>
-
-                  <div className="col-span-3 text-right">
-                    <span className="font-black text-on-surface text-base block">${formatPrice(e.monto)}</span>
-                  </div>
-
-                  <div className="col-span-1 text-right">
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`¿Eliminar el gasto "${e.concepto}" ($${formatPrice(e.monto)})?`)) {
-                          deleteExpense(e.id);
-                        }
-                      }}
-                      className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
-                      title="Eliminar gasto"
-                    >
-                      <span className="material-symbols-outlined text-lg">delete</span>
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Modal Nuevo Gasto */}
-        {showExpenseModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in">
-            <form onSubmit={handleExpenseSubmit} className="bg-white rounded-3xl p-6 w-full max-w-md flex flex-col gap-4 shadow-xl border border-surface-container-highest">
-              <div className="flex justify-between items-center border-b pb-3">
-                <h3 className="text-xl font-bold text-primary flex items-center gap-2">
-                  <span className="material-symbols-outlined">payments</span>
-                  <span>Nuevo Gasto Fijo / Pago</span>
-                </h3>
-                <button type="button" onClick={() => setShowExpenseModal(false)} className="text-secondary font-bold">✕</button>
-              </div>
-
               <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Concepto del Gasto</label>
+                <label className="block text-xs font-bold text-secondary mb-1">Categoría de la Compra</label>
+                <select
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-xs outline-none focus:border-primary font-bold text-on-surface"
+                  value={purchaseForm.categoria}
+                  onChange={e => setPurchaseForm({ ...purchaseForm, categoria: e.target.value })}
+                >
+                  <option value="📦 Mercadería (Stock)">📦 Mercadería (Stock - Suma al Inventario)</option>
+                  <option value="🛍️ Insumos / Embalaje (Bolsas, Cinta, Film)">🛍️ Insumos / Embalaje (Bolsas, Cinta, Film)</option>
+                  <option value="🛒 Gastos Extras">🛒 Gastos Extras</option>
+                  <option value="💡 Servicios / Alquiler">💡 Servicios / Alquiler</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="border-t pt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPurchaseModal(false)}
+                className="px-4 py-2 rounded-xl text-secondary hover:bg-surface-container-low text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm"
+              >
+                Guardar Compra
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal Registrar Gasto / Servicio */}
+      {showExpenseModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <form onSubmit={handleExpenseSubmit} className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-surface-container-highest flex flex-col gap-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-amber-700">receipt_long</span>
+                <span>Registrar Gasto o Servicio</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowExpenseModal(false)}
+                className="text-secondary hover:text-on-surface font-bold text-base p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block text-xs font-bold text-secondary mb-1">Concepto / Nombre del Gasto *</label>
                 <input
+                  type="text"
                   required
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary"
-                  placeholder="Ej: Alquiler del local / Luz Edenor / Sueldos"
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
+                  placeholder="Ej: Edesur - Luz del Local / Alquiler"
                   value={expenseForm.concepto}
                   onChange={e => setExpenseForm({ ...expenseForm, concepto: e.target.value })}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-secondary mb-1">Categoría</label>
-                  <select 
-                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-semibold"
-                    value={expenseForm.categoria}
-                    onChange={e => setExpenseForm({ ...expenseForm, categoria: e.target.value })}
-                  >
-                    <option value="Alquiler">Alquiler</option>
-                    <option value="Servicios">Servicios (Luz/Agua)</option>
-                    <option value="Sueldos">Sueldos</option>
-                    <option value="Impuestos">Impuestos</option>
-                    <option value="Mantenimiento">Mantenimiento</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-secondary mb-1">Monto ($)</label>
-                  <input
-                    required
-                    type="number"
-                    className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-primary"
-                    placeholder="Ej: 25000"
-                    value={expenseForm.monto}
-                    onChange={e => setExpenseForm({ ...expenseForm, monto: e.target.value })}
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Estado de Pago</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="estado" 
-                      value="Pendiente" 
-                      checked={expenseForm.estado === 'Pendiente'}
-                      onChange={e => setExpenseForm({ ...expenseForm, estado: e.target.value })}
-                    />
-                    <span>Pendiente</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="estado" 
-                      value="Pagado" 
-                      checked={expenseForm.estado === 'Pagado'}
-                      onChange={e => setExpenseForm({ ...expenseForm, estado: e.target.value })}
-                    />
-                    <span>Pagado</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 mt-2">
-                <button type="button" onClick={() => setShowExpenseModal(false)} className="px-4 py-2.5 rounded-xl border text-secondary font-semibold text-sm">Cancelar</button>
-                <button type="submit" className="px-5 py-2.5 bg-primary text-white font-bold text-sm rounded-xl shadow-md">Guardar Gasto</button>
-              </div>
-            </form>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // 4. SECCIÓN DE INGRESOS Y GASTOS EXTRAS
-  // -------------------------------------------------------------
-  if (subView === 'extras') {
-    return (
-      <div className="flex flex-col gap-6 animate-fade-in max-w-4xl mx-auto w-full">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-surface-container-low shadow-sm">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSubView('dashboard')}
-              className="p-2.5 rounded-full bg-surface-container-low hover:bg-surface-container-high text-secondary transition-colors"
-            >
-              <span className="material-symbols-outlined text-xl">arrow_back</span>
-            </button>
-            <div>
-              <h2 className="text-xl font-bold text-on-surface">Ingresos y Gastos Extras</h2>
-              <p className="text-xs text-secondary">Registro de movimientos no estandarizados del negocio</p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowExtraModal(true)}
-            className="bg-primary text-white font-bold px-5 py-2.5 rounded-full text-xs shadow-md hover:bg-surface-tint flex items-center gap-2 transition-transform active:scale-95"
-          >
-            <span className="material-symbols-outlined text-base">add</span>
-            <span>Nuevo Movimiento</span>
-          </button>
-        </div>
-
-        {/* Summary Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-surface-container-low border-t-4 border-t-emerald-600 shadow-sm flex justify-between items-center">
-            <div>
-              <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider block">Total Ingresos Extras</span>
-              <span className="text-2xl font-black text-emerald-700 mt-1">+${formatPrice(totalIngresosExtras)}</span>
-            </div>
-            <span className="material-symbols-outlined text-emerald-600 text-3xl">trending_up</span>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-surface-container-low border-t-4 border-t-error shadow-sm flex justify-between items-center">
-            <div>
-              <span className="text-xs font-bold text-error uppercase tracking-wider block">Total Gastos Extras</span>
-              <span className="text-2xl font-black text-error mt-1">-${formatPrice(totalGastosExtras)}</span>
-            </div>
-            <span className="material-symbols-outlined text-error text-3xl">trending_down</span>
-          </div>
-        </div>
-
-        {/* Extras List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-surface-container-low overflow-hidden">
-          <div className="p-4 bg-surface-container-low border-b font-bold text-xs text-secondary uppercase tracking-wider grid grid-cols-12 gap-2">
-            <div className="col-span-5">Concepto & Tipo</div>
-            <div className="col-span-3">Fecha</div>
-            <div className="col-span-3 text-right">Monto</div>
-            <div className="col-span-1 text-right">Acción</div>
-          </div>
-
-          <div className="divide-y divide-surface-container-highest">
-            {extraMovements.length === 0 ? (
-              <div className="p-12 text-center text-secondary">
-                <p className="font-semibold text-sm">No hay movimientos extras registrados.</p>
-              </div>
-            ) : (
-              extraMovements.map(m => (
-                <div key={m.id} className="p-4 grid grid-cols-12 gap-2 items-center hover:bg-surface-container-low transition-colors text-sm">
-                  <div className="col-span-5">
-                    <h4 className="font-bold text-on-surface">{m.concepto}</h4>
-                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md inline-block mt-0.5 ${
-                      m.tipo === 'ingreso' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {m.tipo === 'ingreso' ? 'INGRESO EXTRA' : 'GASTO EXTRA'}
-                    </span>
-                  </div>
-
-                  <div className="col-span-3 text-xs text-secondary">
-                    📅 {new Date(m.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
-                  </div>
-
-                  <div className="col-span-3 text-right">
-                    <span className={`font-black text-base block ${m.tipo === 'ingreso' ? 'text-emerald-700' : 'text-error'}`}>
-                      {m.tipo === 'ingreso' ? '+' : '-'}${formatPrice(m.monto)}
-                    </span>
-                  </div>
-
-                  <div className="col-span-1 text-right">
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`¿Eliminar el movimiento extra "${m.concepto}" ($${formatPrice(m.monto)})?`)) {
-                          deleteExtraMovement(m.id);
-                        }
-                      }}
-                      className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
-                      title="Eliminar movimiento"
-                    >
-                      <span className="material-symbols-outlined text-lg">delete</span>
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Modal Nuevo Movimiento Extra */}
-        {showExtraModal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in">
-            <form onSubmit={handleExtraSubmit} className="bg-white rounded-3xl p-6 w-full max-w-md flex flex-col gap-4 shadow-xl border border-surface-container-highest">
-              <div className="flex justify-between items-center border-b pb-3">
-                <h3 className="text-xl font-bold text-primary flex items-center gap-2">
-                  <span className="material-symbols-outlined">more_horiz</span>
-                  <span>Nuevo Movimiento Extra</span>
-                </h3>
-                <button type="button" onClick={() => setShowExtraModal(false)} className="text-secondary font-bold">✕</button>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Tipo de Movimiento</label>
-                <select 
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold"
-                  value={extraForm.tipo}
-                  onChange={e => setExtraForm({ ...extraForm, tipo: e.target.value })}
+                <label className="block text-xs font-bold text-secondary mb-1">Categoría</label>
+                <select
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-xs outline-none focus:border-primary font-bold text-on-surface"
+                  value={expenseForm.categoria}
+                  onChange={e => setExpenseForm({ ...expenseForm, categoria: e.target.value })}
                 >
-                  <option value="ingreso">🟢 Ingreso Extra (ej: Venta de cajones/pallets)</option>
-                  <option value="gasto">🔴 Gasto Extra (ej: Reparación de balanza/Limpieza)</option>
+                  <option value="Servicios">💡 Servicios (Luz, Agua, Gas, Internet)</option>
+                  <option value="Alquiler">🏢 Alquiler</option>
+                  <option value="Sueldos">👥 Sueldos / Personal</option>
+                  <option value="Impuestos">🏛️ Impuestos / Tasas</option>
+                  <option value="Mantenimiento">🔧 Mantenimiento / Reparaciones</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Concepto / Descripción</label>
+                <label className="block text-xs font-bold text-secondary mb-1">Monto Pagado ($) *</label>
                 <input
+                  type="number"
                   required
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary"
-                  placeholder="Ej: Venta de pallets usados / Artículos de limpieza"
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
+                  placeholder="Ej: 8500"
+                  value={expenseForm.monto}
+                  onChange={e => setExpenseForm({ ...expenseForm, monto: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="border-t pt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowExpenseModal(false)}
+                className="px-4 py-2 rounded-xl text-secondary hover:bg-surface-container-low text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm"
+              >
+                Guardar Gasto
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal Movimiento Extra */}
+      {showExtraModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <form onSubmit={handleExtraSubmit} className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-surface-container-highest flex flex-col gap-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-purple-700">more_horiz</span>
+                <span>Registrar Movimiento Extra</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowExtraModal(false)}
+                className="text-secondary hover:text-on-surface font-bold text-base p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block text-xs font-bold text-secondary mb-1">Tipo de Movimiento</label>
+                <select
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-xs outline-none focus:border-primary font-bold text-on-surface"
+                  value={extraForm.tipo}
+                  onChange={e => setExtraForm({ ...extraForm, tipo: e.target.value })}
+                >
+                  <option value="ingreso">🟢 Ingreso Extra</option>
+                  <option value="gasto">🔴 Gasto Extra</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-secondary mb-1">Concepto / Descripción *</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
+                  placeholder="Ej: Aporte inicial de caja / Venta de pallet usado"
                   value={extraForm.concepto}
                   onChange={e => setExtraForm({ ...extraForm, concepto: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-secondary mb-1">Monto ($)</label>
+                <label className="block text-xs font-bold text-secondary mb-1">Monto ($) *</label>
                 <input
-                  required
                   type="number"
-                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary font-bold text-primary"
-                  placeholder="Ej: 4500"
+                  required
+                  className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-2.5 text-sm outline-none focus:border-primary font-bold text-on-surface"
+                  placeholder="Ej: 5000"
                   value={extraForm.monto}
                   onChange={e => setExtraForm({ ...extraForm, monto: e.target.value })}
                 />
               </div>
-
-              <div className="flex justify-end gap-2 mt-2">
-                <button type="button" onClick={() => setShowExtraModal(false)} className="px-4 py-2.5 rounded-xl border text-secondary font-semibold text-sm">Cancelar</button>
-                <button type="submit" className="px-5 py-2.5 bg-primary text-white font-bold text-sm rounded-xl shadow-md">Guardar Movimiento</button>
-              </div>
-            </form>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // -------------------------------------------------------------
-  // 5. SECCIÓN DE VENTAS (HISTORIAL)
-  // -------------------------------------------------------------
-  return (
-    <div className="flex flex-col gap-6 animate-fade-in max-w-4xl mx-auto w-full">
-      <div className="flex justify-between items-center bg-white p-5 rounded-2xl border border-surface-container-low shadow-sm">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSubView('dashboard')}
-            className="p-2.5 rounded-full bg-surface-container-low hover:bg-surface-container-high text-secondary transition-colors"
-          >
-            <span className="material-symbols-outlined text-xl">arrow_back</span>
-          </button>
-          <div>
-            <h2 className="text-xl font-bold text-on-surface">Historial de Ventas</h2>
-            <p className="text-xs text-secondary">Registro completo de ventas por Mostrador y Delivery</p>
-          </div>
-        </div>
-
-        <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full">
-          Total: ${formatPrice(totalVentas)}
-        </span>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-surface-container-low overflow-hidden">
-        <div className="p-4 bg-surface-container-low border-b font-bold text-xs text-secondary uppercase tracking-wider grid grid-cols-12 gap-2">
-          <div className="col-span-4">Cliente & Tipo</div>
-          <div className="col-span-4">Fecha</div>
-          <div className="col-span-3 text-right">Total</div>
-          <div className="col-span-1 text-right">Acción</div>
-        </div>
-
-        <div className="divide-y divide-surface-container-highest">
-          {sales.length === 0 ? (
-            <div className="p-12 text-center text-secondary">
-              <p className="font-semibold text-sm">No hay ventas registradas.</p>
             </div>
-          ) : (
-            sales.map(s => (
-              <div key={s.id} className="p-4 grid grid-cols-12 gap-2 items-center hover:bg-surface-container-low transition-colors text-sm">
-                <div className="col-span-4">
-                  <h4 className="font-bold text-on-surface">{s.cliente || 'Mostrador'}</h4>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md inline-block mt-0.5 ${
-                    s.type === 'Delivery' ? 'bg-amber-100 text-amber-900' : 'bg-primary-container/30 text-primary'
-                  }`}>
-                    {s.type || 'Local'}
-                  </span>
-                </div>
 
-                <div className="col-span-4 text-xs text-secondary">
-                  📅 {new Date(s.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                </div>
-
-                <div className="col-span-3 text-right">
-                  <span className="font-black text-primary text-base block">${formatPrice(s.total)}</span>
-                </div>
-
-                <div className="col-span-1 text-right">
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`¿Eliminar la venta de ${s.cliente || 'Mostrador'} ($${formatPrice(s.total)}) del historial?`)) {
-                        salesData.deleteSale(s.id);
-                      }
-                    }}
-                    className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-full transition-colors"
-                    title="Eliminar venta del historial"
-                  >
-                    <span className="material-symbols-outlined text-lg">delete</span>
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+            <div className="border-t pt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowExtraModal(false)}
+                className="px-4 py-2 rounded-xl text-secondary hover:bg-surface-container-low text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-sm"
+              >
+                Guardar Movimiento
+              </button>
+            </div>
+          </form>
         </div>
-      </div>
+      )}
     </div>
   );
 }

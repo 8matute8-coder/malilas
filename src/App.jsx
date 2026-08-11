@@ -70,15 +70,14 @@ function App() {
             { id: 'caja', label: 'Caja', icon: 'shopping_cart' },
             { id: 'inventario', label: 'Inventario', icon: 'inventory_2' },
             { id: 'delivery', label: 'Delivery', icon: 'local_shipping', badge: pendingOrdersCount },
-            { id: 'contabilidad', label: 'Control', icon: 'account_balance' },
-            { id: 'contactos', label: 'Agenda', icon: 'contacts' },
-            { id: 'estadisticas', label: 'Stats', icon: 'insights' },
+            { id: 'contabilidad', label: 'Control & Stats', icon: 'account_balance' },
+            { id: 'contactos', label: 'Agenda', icon: 'contacts' }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`h-full flex items-center gap-2 px-3 font-semibold text-sm border-b-2 transition-all relative ${
-                activeTab === tab.id
+                activeTab === tab.id || (tab.id === 'contabilidad' && activeTab === 'estadisticas')
                   ? 'border-primary text-primary font-bold'
                   : 'border-transparent text-secondary hover:text-primary'
               }`}
@@ -177,30 +176,25 @@ function App() {
           <Delivery ordersData={ordersData} salesData={salesData} />
         </div>
 
-        <div className={activeTab === 'contabilidad' ? 'block' : 'hidden'}>
-          <Contabilidad accountingData={accountingData} inventoryData={inventoryData} salesData={salesData} contactsData={contactsData} />
+        <div className={(activeTab === 'contabilidad' || activeTab === 'estadisticas') ? 'block' : 'hidden'}>
+          <Contabilidad accountingData={accountingData} inventoryData={inventoryData} salesData={salesData} contactsData={contactsData} ordersData={ordersData} />
         </div>
 
         <div className={activeTab === 'contactos' ? 'block' : 'hidden'}>
           <Contactos contactsData={contactsData} />
         </div>
-
-        <div className={activeTab === 'estadisticas' ? 'block' : 'hidden'}>
-          <Estadisticas salesData={salesData} ordersData={ordersData} />
-        </div>
       </main>
 
       {/* Stitch Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-surface-container-highest grid grid-cols-6 items-center py-1.5 px-1 shadow-lg pb-safe">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-surface-container-highest grid grid-cols-5 items-center py-1.5 px-1 shadow-lg pb-safe">
         {[
           { id: 'caja', label: 'Caja', icon: 'shopping_cart' },
           { id: 'inventario', label: 'Stock', icon: 'inventory_2' },
           { id: 'delivery', label: 'Envío', icon: 'local_shipping', badge: pendingOrdersCount },
           { id: 'contabilidad', label: 'Control', icon: 'account_balance' },
-          { id: 'contactos', label: 'Agenda', icon: 'contacts' },
-          { id: 'estadisticas', label: 'Stats', icon: 'insights' },
+          { id: 'contactos', label: 'Agenda', icon: 'contacts' }
         ].map((tab) => {
-          const isActive = activeTab === tab.id;
+          const isActive = activeTab === tab.id || (tab.id === 'contabilidad' && activeTab === 'estadisticas');
           return (
             <button
               key={tab.id}
