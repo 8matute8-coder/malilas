@@ -1082,13 +1082,13 @@ export default function Inventory({ inventoryData, accountingData }) {
 
         {/* LEFT SECTION: TABLE & PRODUCTS LIST */}
         <div className="lg:col-span-9 flex flex-col gap-3">
-          {/* DESKTOP TABLE COLUMNS HEADER BAR (SPANISH) */}
-          <div className="hidden md:grid grid-cols-12 gap-2 bg-surface-container-low border border-surface-container-highest rounded-2xl px-5 py-3 text-xs font-black text-on-surface uppercase tracking-wider text-center items-center shadow-2xs">
+          {/* DESKTOP TABLE COLUMNS HEADER BAR (5 COLUMNS IN 1 LINE) */}
+          <div className="hidden md:grid grid-cols-12 gap-3 bg-surface-container-low border border-surface-container-highest rounded-2xl px-5 py-3 text-xs font-black text-on-surface uppercase tracking-wider items-center shadow-2xs">
             <div className="col-span-3 text-left pl-2">Producto</div>
-            <div className="col-span-2">[Costo Unitario]</div>
-            <div className="col-span-2">[Precio de Venta]</div>
-            <div className="col-span-2">[Margen %]</div>
-            <div className="col-span-3">[Stock Actual]</div>
+            <div className="col-span-2 text-center">Costo Unitario</div>
+            <div className="col-span-2 text-center">Precio de Venta</div>
+            <div className="col-span-2 text-center">Stock Actual</div>
+            <div className="col-span-3 text-right pr-2">Acciones</div>
           </div>
 
           {/* PRODUCTS LIST */}
@@ -1251,78 +1251,31 @@ export default function Inventory({ inventoryData, accountingData }) {
                     </div>
                   </div>
 
-                  {/* 2. DESKTOP TABLE ROW VIEW (Visible on Desktop >= 768px) */}
+                  {/* 2. DESKTOP/TABLET TABLE ROW VIEW (5 COLUMNS IN A SINGLE HORIZONTAL LINE) */}
                   <div className="hidden md:block bg-white rounded-2xl border border-surface-container-low overflow-hidden shadow-2xs hover:bg-surface-container-low/40 transition-colors">
-                    <div className={`grid grid-cols-12 gap-2 px-5 py-3.5 items-center ${
+                    <div className={`grid grid-cols-12 gap-3 px-5 py-3.5 items-center ${
                       p.esOferta ? 'bg-amber-50/60 border-l-4 border-l-amber-500' : ''
                     }`}>
-                      {/* Product Name & Img & Actions below (Col 3) */}
-                      <div className="col-span-3 flex items-start gap-3">
+                      {/* Col 1: Producto (Col-span 3) */}
+                      <div className="col-span-3 flex items-center gap-3">
                         <img 
                           src={getProductImage(p)} 
                           alt={p.nombre} 
-                          className="w-11 h-11 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-2xs mt-0.5" 
+                          className="w-11 h-11 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
                         />
-                        <div className="min-w-0 flex-grow flex flex-col gap-1.5">
-                          <div>
-                            <h3 className="font-extrabold text-on-surface text-sm leading-snug truncate">{p.nombre}</h3>
-                            <span className="text-[11px] text-secondary font-medium">Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
-                          </div>
-
-                          {/* Action Buttons Row right below the product title */}
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={(e) => handleOpenAddStockForProduct(p, e)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white p-1.5 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                              title="Cargar Compra / Añadir Stock"
-                            >
-                              <span className="material-symbols-outlined text-base">add_shopping_cart</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                if (e) e.stopPropagation();
-                                scrollPosRef.current = window.scrollY;
-                                setSelectedProduct(p);
-                                setMermaForm({ quantity: '', motive: '' });
-                                setView('merma');
-                              }}
-                              className="bg-amber-500 hover:bg-amber-600 text-white p-1.5 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                              title="Registrar Merma"
-                            >
-                              <span className="material-symbols-outlined text-base">remove_shopping_cart</span>
-                            </button>
-
-                            <button
-                              onClick={() => handleEdit(p)}
-                              className="p-1.5 text-secondary hover:text-primary hover:bg-surface-container-low rounded-xl transition-colors cursor-pointer"
-                              title="Editar producto"
-                            >
-                              <span className="material-symbols-outlined text-base">edit</span>
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`¿Estás seguro de eliminar "${p.nombre}"?`)) deleteProduct(p.id);
-                              }}
-                              className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-xl transition-colors cursor-pointer"
-                              title="Eliminar producto"
-                            >
-                              <span className="material-symbols-outlined text-base">delete</span>
-                            </button>
-                          </div>
+                        <div className="min-w-0 flex-grow">
+                          <h3 className="font-extrabold text-on-surface text-sm leading-snug truncate">{p.nombre}</h3>
+                          <span className="text-[11px] text-secondary font-medium">Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
                         </div>
                       </div>
 
-                      {/* Cost (Col 2) */}
+                      {/* Col 2: Costo Unitario (Col-span 2) */}
                       <div className="col-span-2 text-center font-extrabold text-xs text-on-surface">
                         ${formatPrice(p.costoPromedio)}
                       </div>
 
-                      {/* Precio Venta (Col 2) */}
-                      <div className="col-span-2 flex items-center gap-2 justify-center">
+                      {/* Col 3: Precio de venta (Col-span 2) */}
+                      <div className="col-span-2 flex items-center justify-center gap-1.5">
                         <div className="inline-flex items-center bg-emerald-50/90 border border-emerald-200/90 rounded-2xl p-1 shadow-2xs">
                           <button
                             type="button"
@@ -1345,17 +1298,13 @@ export default function Inventory({ inventoryData, accountingData }) {
                             +
                           </button>
                         </div>
-                      </div>
-
-                      {/* Margen % (Col 2) */}
-                      <div className="col-span-2 text-center">
-                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-100/70 px-2.5 py-1 rounded-md border border-emerald-200 inline-block">
+                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0">
                           +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
                         </span>
                       </div>
 
-                      {/* Stock (Col 3) */}
-                      <div className="col-span-3 flex items-center justify-center">
+                      {/* Col 4: Stock Actual (Col-span 2) */}
+                      <div className="col-span-2 flex items-center justify-center">
                         <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-2xl p-1 shadow-2xs">
                           <button
                             type="button"
@@ -1378,6 +1327,55 @@ export default function Inventory({ inventoryData, accountingData }) {
                             +
                           </button>
                         </div>
+                      </div>
+
+                      {/* Col 5: Acciones (Col-span 3 - 4 botones con iconos diferenciables) */}
+                      <div className="col-span-3 flex justify-end items-center gap-1.5 shrink-0">
+                        {/* 1. Añadir Compra */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenAddStockForProduct(p, e)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                          title="Añadir Compra"
+                        >
+                          <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+                        </button>
+
+                        {/* 2. Mermar Producto */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            if (e) e.stopPropagation();
+                            scrollPosRef.current = window.scrollY;
+                            setSelectedProduct(p);
+                            setMermaForm({ quantity: '', motive: '' });
+                            setView('merma');
+                          }}
+                          className="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                          title="Mermar Producto"
+                        >
+                          <span className="material-symbols-outlined text-lg">remove_shopping_cart</span>
+                        </button>
+
+                        {/* 3. Editar Producto */}
+                        <button
+                          onClick={() => handleEdit(p)}
+                          className="p-2 text-secondary hover:text-primary hover:bg-surface-container-low rounded-xl transition-colors cursor-pointer"
+                          title="Editar Producto"
+                        >
+                          <span className="material-symbols-outlined text-lg">edit</span>
+                        </button>
+
+                        {/* 4. Eliminar Producto */}
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`¿Estás seguro de eliminar "${p.nombre}"?`)) deleteProduct(p.id);
+                          }}
+                          className="p-2 text-secondary hover:text-error hover:bg-error-container/20 rounded-xl transition-colors cursor-pointer"
+                          title="Eliminar Producto"
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                        </button>
                       </div>
                     </div>
                   </div>
