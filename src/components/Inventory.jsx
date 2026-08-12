@@ -1262,7 +1262,7 @@ export default function Inventory({ inventoryData, accountingData }) {
                     </div>
 
                     {/* Precio Venta */}
-                    <div className="col-span-3 flex items-center gap-2">
+                    <div className="col-span-2 flex items-center gap-1.5 flex-wrap">
                       <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
                         <button
                           type="button"
@@ -1273,7 +1273,7 @@ export default function Inventory({ inventoryData, accountingData }) {
                         </button>
                         <span 
                           onClick={(e) => handleStartEditPrice(p, e)}
-                          className="font-black text-primary px-2 text-xs cursor-pointer hover:underline"
+                          className="font-black text-primary px-1.5 text-xs cursor-pointer hover:underline"
                         >
                           ${formatPrice(p.precioVenta)}
                         </span>
@@ -1285,14 +1285,14 @@ export default function Inventory({ inventoryData, accountingData }) {
                           +
                         </button>
                       </div>
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200">
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0">
                         +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
                       </span>
                     </div>
 
                     {/* Stock */}
-                    <div className="col-span-3 flex items-center gap-2">
-                      <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
+                    <div className="col-span-3 flex items-center gap-2 flex-wrap">
+                      <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs shrink-0">
                         <button
                           type="button"
                           onClick={(e) => handleQuickAdjustStock(p, -1, e)}
@@ -1302,7 +1302,7 @@ export default function Inventory({ inventoryData, accountingData }) {
                         </button>
                         <span 
                           onClick={(e) => handleStartEditStock(p, e)}
-                          className={`font-black px-2 text-xs cursor-pointer hover:underline ${isLowStock ? 'text-error' : 'text-on-surface'}`}
+                          className={`font-black px-1.5 text-xs cursor-pointer hover:underline ${isLowStock ? 'text-error' : 'text-on-surface'}`}
                         >
                           {formatQuantity(p.stockActual)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
                         </span>
@@ -1315,14 +1315,14 @@ export default function Inventory({ inventoryData, accountingData }) {
                         </button>
                       </div>
                       {isLowStock && (
-                        <span className="px-2 py-0.5 rounded-full bg-error-container text-error font-extrabold text-[10px] uppercase">
+                        <span className="px-2 py-0.5 rounded-full bg-error-container text-error font-extrabold text-[10px] uppercase shrink-0">
                           ⚠️ Bajo
                         </span>
                       )}
                     </div>
 
                     {/* Actions */}
-                    <div className="col-span-2 flex justify-end items-center gap-1.5">
+                    <div className="col-span-3 flex justify-end items-center gap-1.5 shrink-0">
                       <button
                         type="button"
                         onClick={(e) => handleOpenAddStockForProduct(p, e)}
