@@ -165,7 +165,7 @@ function App() {
       {/* Main Container */}
       <main className="flex-1 w-full p-4 md:p-8">
         <div className={activeTab === 'caja' ? 'block' : 'hidden'}>
-          <Caja inventoryData={inventoryData} salesData={salesData} aliasBancario={aliasBancario} />
+          <Caja inventoryData={inventoryData} ordersData={ordersData} salesData={salesData} aliasBancario={aliasBancario} />
         </div>
 
         <div className={activeTab === 'inventario' ? 'block' : 'hidden'}>

@@ -138,26 +138,39 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
     alert('¡Venta confirmada exitosamente!');
   };
 
-  const handleCreateDelivery = (e) => {
+  const handleCreateDelivery = async (e) => {
     e.preventDefault();
-    if (cart.length === 0 || !addOrder) return;
+    if (cart.length === 0) {
+      alert('El ticket de venta está vacío. Añade productos para crear un pedido de delivery.');
+      return;
+    }
+    if (!addOrder) {
+      alert('Error: La función de agregar pedidos no se recibió correctamente en la Caja.');
+      return;
+    }
 
-    addOrder({
-      cliente: deliveryForm.cliente,
-      direccion: deliveryForm.direccion,
-      telefono: deliveryForm.telefono,
-      items: cart,
-      total: finalTotal
-    });
-    
-    processSale(cart);
-    
-    setCart([]);
-    setIsManualOverride(false);
-    setManualTotal('');
-    setShowDeliveryModal(false);
-    setDeliveryForm({ cliente: '', direccion: '', telefono: '' });
-    alert('¡Pedido de Delivery creado con éxito!');
+    try {
+      await addOrder({
+        cliente: deliveryForm.cliente,
+        direccion: deliveryForm.direccion,
+        telefono: deliveryForm.telefono,
+        items: cart,
+        total: finalTotal
+      });
+      
+      processSale(cart);
+      soundManager.playChaChing();
+      
+      setCart([]);
+      setIsManualOverride(false);
+      setManualTotal('');
+      setShowDeliveryModal(false);
+      setDeliveryForm({ cliente: '', direccion: '', telefono: '' });
+      alert('¡Pedido de Delivery creado con éxito! Se ha derivado a la pestaña Delivery y se descontó el stock.');
+    } catch (err) {
+      console.error(err);
+      alert('Ocurrió un error al crear el pedido: ' + err.message);
+    }
   };
 
   const filteredProducts = products
