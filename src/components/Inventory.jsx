@@ -1175,7 +1175,6 @@ export default function Inventory({ inventoryData, accountingData }) {
                     <div className="flex flex-col justify-between pl-1">
                       <div className="flex justify-between items-center font-bold">
                         <span className="text-secondary text-[11px]">Stock Actual:</span>
-                        {isLowStock && <span className="text-[9px] font-black text-error bg-error-container/60 px-1.5 py-0.5 rounded-md uppercase">⚠️ Bajo</span>}
                       </div>
 
                       <div className="flex flex-col gap-1">
@@ -1189,7 +1188,7 @@ export default function Inventory({ inventoryData, accountingData }) {
                           </button>
                           <span 
                             onClick={(e) => handleStartEditStock(p, e)}
-                            className={`font-black text-xs px-1 hover:underline cursor-pointer ${isLowStock ? 'text-error' : 'text-on-surface'}`}
+                            className="font-black text-xs px-1 hover:underline cursor-pointer text-on-surface"
                           >
                             {formatQuantity(p.stockActual)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
                           </span>
@@ -1235,34 +1234,34 @@ export default function Inventory({ inventoryData, accountingData }) {
 
                 {/* 2. DESKTOP TABLE VIEW (Visible on Desktop >= 768px) */}
                 <div className="hidden md:block bg-white rounded-3xl border border-surface-container-low overflow-hidden shadow-2xs">
-                  <div className={`grid grid-cols-12 gap-4 px-6 py-4 items-center ${
+                  <div className={`grid grid-cols-12 gap-3 px-6 py-3.5 items-center ${
                     p.esOferta ? 'bg-amber-50/60 border-l-4 border-l-amber-500' : 'hover:bg-surface-container-low/60'
                   }`}>
-                    {/* Product Name & Img */}
-                    <div className="col-span-3 flex items-center gap-3">
+                    {/* Product Name & Img (Col 4) */}
+                    <div className="col-span-4 flex items-center gap-3">
                       <img 
                         src={getProductImage(p)} 
                         alt={p.nombre} 
                         className="w-10 h-10 rounded-xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
                       />
-                      <div>
-                        <h3 className="font-extrabold text-on-surface text-sm leading-snug">{p.nombre}</h3>
+                      <div className="min-w-0 flex-grow">
+                        <h3 className="font-extrabold text-on-surface text-sm leading-snug truncate">{p.nombre}</h3>
                         <span className="text-[11px] text-secondary">Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
                         {lastPurchase && (
-                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 block mt-0.5 w-fit">
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 block mt-0.5 w-fit truncate max-w-full">
                             Última Compra: 🏢 {lastPurchase.proveedor} (${formatPrice(lastPurchase.costoUnitario)})
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Cost */}
+                    {/* Cost (Col 1) */}
                     <div className="col-span-1 text-center font-bold text-xs text-secondary">
                       ${formatPrice(p.costoPromedio)}
                     </div>
 
-                    {/* Precio Venta */}
-                    <div className="col-span-2 flex items-center gap-1.5 flex-wrap">
+                    {/* Precio Venta (Col 3) */}
+                    <div className="col-span-3 flex items-center gap-2">
                       <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
                         <button
                           type="button"
@@ -1273,7 +1272,7 @@ export default function Inventory({ inventoryData, accountingData }) {
                         </button>
                         <span 
                           onClick={(e) => handleStartEditPrice(p, e)}
-                          className="font-black text-primary px-1.5 text-xs cursor-pointer hover:underline"
+                          className="font-black text-primary px-2 text-xs cursor-pointer hover:underline"
                         >
                           ${formatPrice(p.precioVenta)}
                         </span>
@@ -1290,9 +1289,9 @@ export default function Inventory({ inventoryData, accountingData }) {
                       </span>
                     </div>
 
-                    {/* Stock */}
-                    <div className="col-span-3 flex items-center gap-2 flex-wrap">
-                      <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs shrink-0">
+                    {/* Stock (Col 2) */}
+                    <div className="col-span-2 flex items-center justify-center">
+                      <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
                         <button
                           type="button"
                           onClick={(e) => handleQuickAdjustStock(p, -1, e)}
@@ -1302,7 +1301,7 @@ export default function Inventory({ inventoryData, accountingData }) {
                         </button>
                         <span 
                           onClick={(e) => handleStartEditStock(p, e)}
-                          className={`font-black px-1.5 text-xs cursor-pointer hover:underline ${isLowStock ? 'text-error' : 'text-on-surface'}`}
+                          className="font-black px-2 text-xs cursor-pointer hover:underline text-on-surface"
                         >
                           {formatQuantity(p.stockActual)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
                         </span>
@@ -1314,22 +1313,17 @@ export default function Inventory({ inventoryData, accountingData }) {
                           +
                         </button>
                       </div>
-                      {isLowStock && (
-                        <span className="px-2 py-0.5 rounded-full bg-error-container text-error font-extrabold text-[10px] uppercase shrink-0">
-                          ⚠️ Bajo
-                        </span>
-                      )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="col-span-3 flex justify-end items-center gap-1.5 shrink-0">
+                    {/* Actions Icon Group (Col 2) */}
+                    <div className="col-span-2 flex justify-end items-center gap-1">
                       <button
                         type="button"
                         onClick={(e) => handleOpenAddStockForProduct(p, e)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                        title="Cargar Compra / Añadir Stock"
                       >
-                        <span className="material-symbols-outlined text-xs">add_shopping_cart</span>
-                        <span>+ Compra</span>
+                        <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
                       </button>
 
                       <button
@@ -1341,28 +1335,28 @@ export default function Inventory({ inventoryData, accountingData }) {
                           setMermaForm({ quantity: '', motive: '' });
                           setView('merma');
                         }}
-                        className="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1.5 rounded-xl font-bold text-[11px] shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                        className="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                        title="Registrar Merma"
                       >
-                        <span className="material-symbols-outlined text-xs">remove_shopping_cart</span>
-                        <span>Merma</span>
+                        <span className="material-symbols-outlined text-lg">remove_shopping_cart</span>
                       </button>
 
                       <button
                         onClick={() => handleEdit(p)}
-                        className="p-1.5 text-secondary hover:text-primary rounded-lg transition-colors"
+                        className="p-2 text-secondary hover:text-primary hover:bg-surface-container-low rounded-xl transition-colors cursor-pointer"
                         title="Editar producto"
                       >
-                        <span className="material-symbols-outlined text-base">edit</span>
+                        <span className="material-symbols-outlined text-lg">edit</span>
                       </button>
 
                       <button
                         onClick={() => {
                           if (window.confirm(`¿Estás seguro de eliminar "${p.nombre}"?`)) deleteProduct(p.id);
                         }}
-                        className="p-1.5 text-secondary hover:text-error rounded-lg transition-colors"
+                        className="p-2 text-secondary hover:text-error hover:bg-error-container/20 rounded-xl transition-colors cursor-pointer"
                         title="Eliminar producto"
                       >
-                        <span className="material-symbols-outlined text-base">delete</span>
+                        <span className="material-symbols-outlined text-lg">delete</span>
                       </button>
                     </div>
                   </div>
