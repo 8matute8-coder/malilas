@@ -17,8 +17,20 @@ export default function Tienda() {
   const { addOrder } = useOrders();
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [view, setView] = useState('catalog'); // 'catalog' | 'cart'
+
+  const POPULAR_TERMS = [
+    { label: 'Banana', icon: '🍌' },
+    { label: 'Papa', icon: '🥔' },
+    { label: 'Tomate', icon: '🍅' },
+    { label: 'Manzana', icon: '🍎' },
+    { label: 'Palta', icon: '🥑' },
+    { label: 'Cebolla', icon: '🧅' },
+    { label: 'Naranja', icon: '🍊' },
+    { label: 'Ofertas', icon: '🔥' }
+  ];
 
   // Modal State for adding items to Cart
   const [modalProduct, setModalProduct] = useState(null);
@@ -35,6 +47,12 @@ export default function Tienda() {
   const formatQuantity = (num) => Number(num.toFixed(2)).toString().replace('.', ',');
 
   const isFruit = (nombre) => FRUTAS_LIST.some(f => nombre.toLowerCase().includes(f));
+
+  const matchingSuggestions = searchTerm.trim() === '' 
+    ? [] 
+    : products
+        .filter(p => p.stockActual > 0 && p.nombre.toLowerCase().includes(searchTerm.toLowerCase()))
+        .slice(0, 5);
 
   const availableProducts = products
     .filter(p => p.stockActual > 0)
@@ -214,51 +232,159 @@ export default function Tienda() {
         </div>
       </div>
 
-      {/* Top Header Bar */}
-      <header className="bg-surface border-b border-surface-container-highest sticky top-0 z-40 px-4 md:px-8 py-3 flex justify-between items-center max-w-7xl mx-auto w-full shadow-sm">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('catalog')}>
-          <img src="./logo.jpg" alt="La Malila Logo" className="h-10 md:h-12 w-auto object-contain rounded-full border border-primary/20 shadow-xs" />
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">La Malila</h1>
-            <p className="text-xs text-secondary hidden sm:block">Tu almacén de confianza</p>
+      {/* Top Header Bar (FIXED STICKY HEADER WITH INTEGRATED MOBILE SEARCH BAR) */}
+      <header className="bg-white/95 backdrop-blur-md border-b border-surface-container-highest sticky top-0 z-40 px-4 md:px-8 py-2.5 max-w-7xl mx-auto w-full shadow-sm flex flex-col gap-2">
+        
+        {/* Top Row: Logo & Nav */}
+        <div className="flex justify-between items-center w-full">
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setView('catalog')}>
+            <img src="./logo.jpg" alt="La Malila Logo" className="h-9 md:h-11 w-auto object-contain rounded-full border border-primary/20 shadow-xs" />
+            <div>
+              <h1 className="text-lg md:text-xl font-bold text-primary tracking-tight leading-none">La Malila</h1>
+              <p className="text-[10px] text-secondary hidden sm:block">Tu almacén de confianza</p>
+            </div>
           </div>
+
+          {/* Header Navigation (TIENDA TEXT + CARRITO PRIMARY CTA) */}
+          <nav className="flex items-center gap-3">
+            <button
+              onClick={() => setView('catalog')}
+              className={`px-2 py-1 text-xs sm:text-sm font-extrabold flex items-center gap-1 transition-all cursor-pointer ${
+                view === 'catalog' 
+                  ? 'text-primary border-b-2 border-primary' 
+                  : 'text-secondary hover:text-primary'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">storefront</span>
+              <span className="hidden sm:inline">Tienda</span>
+            </button>
+            
+            <button
+              onClick={() => setView('cart')}
+              className={`relative px-3.5 py-2 rounded-full text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 ${
+                view === 'cart' 
+                  ? 'bg-emerald-800 text-white ring-2 ring-emerald-400/50' 
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">shopping_cart</span>
+              <span>Carrito</span>
+              {cart.length > 0 && (
+                <span className="bg-white text-emerald-950 text-[11px] font-black px-1.5 py-0.5 rounded-full min-w-5 text-center shadow-2xs">
+                  {cart.length}
+                </span>
+              )}
+            </button>
+          </nav>
         </div>
 
-        {/* Header Navigation (TIENDA TEXT + CARRITO PRIMARY CTA) */}
-        <nav className="flex items-center gap-4">
-          <button
-            onClick={() => setView('catalog')}
-            className={`px-2 py-1 text-sm font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
-              view === 'catalog' 
-                ? 'text-primary border-b-2 border-primary' 
-                : 'text-secondary hover:text-primary'
-            }`}
-          >
-            <span className="material-symbols-outlined text-lg">storefront</span>
-            <span>Tienda</span>
-          </button>
-          
-          <button
-            onClick={() => setView('cart')}
-            className={`relative px-4 py-2 rounded-full text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95 ${
-              view === 'cart' 
-                ? 'bg-emerald-800 text-white ring-2 ring-emerald-400/50' 
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-            }`}
-          >
-            <span className="material-symbols-outlined text-lg">shopping_cart</span>
-            <span>Ver Carrito</span>
-            {cart.length > 0 && (
-              <span className="bg-white text-emerald-950 text-[11px] font-black px-1.5 py-0.5 rounded-full min-w-5 text-center shadow-2xs">
-                {cart.length}
+        {/* Row 2: FULL WIDTH MOBILE SEARCH BAR WITH SUGGESTIONS & 'X' CLEAR BUTTON */}
+        {view === 'catalog' && (
+          <div className="relative w-full">
+            <div className="relative flex items-center w-full">
+              <span className="material-symbols-outlined absolute left-3.5 text-secondary text-lg pointer-events-none">
+                search
               </span>
+              
+              <input
+                type="text"
+                className="w-full bg-surface-container-low border border-surface-container-highest focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary rounded-xl py-2.5 pl-10 pr-10 text-on-surface outline-none transition-all text-xs sm:text-sm font-bold shadow-2xs"
+                placeholder="🔍 Buscar productos (ej: banana, papa, ofertas)..."
+                value={searchTerm}
+                onFocus={() => setShowSuggestions(true)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setShowSuggestions(true);
+                }}
+              />
+
+              {/* Clear Search 'X' Button */}
+              {searchTerm !== '' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setShowSuggestions(false);
+                  }}
+                  className="absolute right-3 p-1 rounded-full text-secondary hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer flex items-center justify-center"
+                  title="Limpiar búsqueda"
+                >
+                  <span className="material-symbols-outlined text-base">close</span>
+                </button>
+              )}
+            </div>
+
+            {/* Autocomplete / Popular Search Terms Dropdown */}
+            {showSuggestions && (
+              <>
+                {/* Backdrop Overlay */}
+                <div className="fixed inset-0 z-40" onClick={() => setShowSuggestions(false)}></div>
+
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-surface-container-highest p-3 z-50 animate-fade-in flex flex-col gap-2 max-h-80 overflow-y-auto">
+                  {searchTerm.trim() === '' ? (
+                    <div>
+                      <div className="text-[11px] font-extrabold text-secondary uppercase tracking-wider mb-2 px-1 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs text-amber-500">trending_up</span>
+                        <span>Términos más buscados</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {POPULAR_TERMS.map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onClick={() => {
+                              setSearchTerm(item.label);
+                              setShowSuggestions(false);
+                            }}
+                            className="bg-surface-container-low hover:bg-emerald-50 hover:text-emerald-950 border border-surface-container-highest px-3 py-1.5 rounded-xl text-xs font-bold text-on-surface flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                          >
+                            <span>{item.icon}</span>
+                            <span>{item.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-[11px] font-extrabold text-secondary uppercase tracking-wider mb-2 px-1">
+                        Sugerencias de productos ({matchingSuggestions.length})
+                      </div>
+                      {matchingSuggestions.length === 0 ? (
+                        <div className="text-xs text-secondary italic py-2 px-1">
+                          No se encontraron productos coincidentes.
+                        </div>
+                      ) : (
+                        <div className="flex flex-col divide-y divide-surface-container-highest">
+                          {matchingSuggestions.map((prod) => (
+                            <button
+                              key={prod.id}
+                              type="button"
+                              onClick={() => {
+                                setSearchTerm(prod.nombre);
+                                setShowSuggestions(false);
+                              }}
+                              className="py-2.5 px-2 hover:bg-surface-container-low rounded-xl flex items-center justify-between text-left transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm text-primary">search</span>
+                                <span className="text-xs font-bold text-on-surface">{prod.nombre}</span>
+                              </div>
+                              <span className="text-xs font-black text-primary">${formatPrice(prod.precioVenta)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
-          </button>
-        </nav>
+          </div>
+        )}
       </header>
 
       {/* Main Content */}
-      <main className="flex-grow max-w-7xl mx-auto w-full px-4 md:px-8 pt-6">
+      <main className="flex-grow max-w-7xl mx-auto w-full px-4 md:px-8 pt-4">
         {view === 'catalog' ? (
           <div className="flex flex-col gap-6">
             
@@ -305,21 +431,7 @@ export default function Tienda() {
               </div>
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full max-w-2xl mx-auto md:mx-0">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-secondary">
-                search
-              </span>
-              <input
-                type="text"
-                className="w-full bg-white border border-surface-container-highest focus:border-primary focus:ring-1 focus:ring-primary rounded-xl py-3 pl-12 pr-4 text-on-surface outline-none transition-all shadow-sm text-xs sm:text-sm font-bold"
-                placeholder="🔍 Buscar frutas, verduras o promos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            {/* Category Filter Chips (Interactive Hover States) */}
+            {/* Category Filter Chips (Horizontal Swipeable Chips) */}
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
               {['Todas', '🔥 Ofertas', 'Frutas', 'Verduras'].map((cat) => (
                 <button
@@ -903,6 +1015,20 @@ export default function Tienda() {
           </div>
         </div>
       )}
+      {/* FLOATING WHATSAPP BUTTON */}
+      <a
+        href="https://wa.me/5493814751814?text=Hola%20La%20Malila!%20Quisiera%20hacer%20una%20consulta"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 bg-emerald-600 hover:bg-emerald-700 text-white p-3.5 sm:p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 flex items-center justify-center border-2 border-white group"
+        title="Consultar por WhatsApp"
+      >
+        <span className="material-symbols-outlined text-2xl sm:text-3xl">chat</span>
+        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 whitespace-nowrap text-xs font-black pl-0 group-hover:pl-2">
+          ¿Dudas? Chateá con nosotros
+        </span>
+        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-white animate-ping"></span>
+      </a>
     </div>
   );
 }
