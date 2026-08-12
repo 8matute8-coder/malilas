@@ -185,9 +185,9 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
             )}
           </div>
 
-          {/* Keypad Grid 4x4 Numpad */}
+          {/* Keypad Grid 4x4 Numpad (ESTRUCTURA UNIVERSAL CALCULADORA POS) */}
           <div className="grid grid-cols-4 gap-2">
-            {/* Row 1 */}
+            {/* Fila 1: 7, 8, 9, CE */}
             <button
               type="button"
               onClick={() => handleDigit('7')}
@@ -211,14 +211,14 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
             </button>
             <button
               type="button"
-              onClick={handleBackspace}
-              className="py-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-2xs cursor-pointer"
-              title="Borrar último dígito"
+              onClick={handleClearCurrent}
+              className="py-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-extrabold text-sm flex items-center justify-center transition-all active:scale-95 shadow-2xs cursor-pointer"
+              title="CE - Limpiar completamente el monto tipeado"
             >
-              <span className="material-symbols-outlined text-xl">backspace</span>
+              CE
             </button>
 
-            {/* Row 2 */}
+            {/* Fila 2: 4, 5, 6, Backspace */}
             <button
               type="button"
               onClick={() => handleDigit('4')}
@@ -242,53 +242,35 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
             </button>
             <button
               type="button"
+              onClick={handleBackspace}
+              className="py-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 font-bold text-sm flex items-center justify-center transition-all active:scale-95 shadow-2xs cursor-pointer"
+              title="Borrar último dígito"
+            >
+              <span className="material-symbols-outlined text-xl">backspace</span>
+            </button>
+
+            {/* Fila 3: 1, 2, 3, + (row-span-2) */}
+            <button
+              type="button"
               onClick={() => handleDigit('1')}
               className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-xl text-on-surface transition-all active:scale-95 shadow-2xs cursor-pointer"
             >
               1
             </button>
-
-            {/* Row 3 & 4 with Tall Green '+' Button */}
-            <div className="col-span-3 grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleDigit('2')}
-                className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-xl text-on-surface transition-all active:scale-95 shadow-2xs cursor-pointer"
-              >
-                2
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDigit('3')}
-                className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-xl text-on-surface transition-all active:scale-95 shadow-2xs cursor-pointer"
-              >
-                3
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDigit('00')}
-                className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-bold text-sm text-secondary transition-all active:scale-95 shadow-2xs cursor-pointer"
-              >
-                00
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDigit('0')}
-                className="col-span-2 py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-xl text-on-surface transition-all active:scale-95 shadow-2xs cursor-pointer"
-              >
-                0
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDigit('.')}
-                className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-xl text-secondary transition-all active:scale-95 shadow-2xs cursor-pointer"
-              >
-                ,
-              </button>
-            </div>
-
-            {/* Tall '+' Button Spanning 2 Rows */}
+            <button
+              type="button"
+              onClick={() => handleDigit('2')}
+              className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-xl text-on-surface transition-all active:scale-95 shadow-2xs cursor-pointer"
+            >
+              2
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDigit('3')}
+              className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-xl text-on-surface transition-all active:scale-95 shadow-2xs cursor-pointer"
+            >
+              3
+            </button>
             <button
               type="button"
               onClick={handleAddAmount}
@@ -296,6 +278,29 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
               title="Sumar al total acumulado"
             >
               +
+            </button>
+
+            {/* Fila 4: 0, 00, , */}
+            <button
+              type="button"
+              onClick={() => handleDigit('0')}
+              className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-xl text-on-surface transition-all active:scale-95 shadow-2xs cursor-pointer"
+            >
+              0
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDigit('00')}
+              className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-bold text-sm text-secondary transition-all active:scale-95 shadow-2xs cursor-pointer"
+            >
+              00
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDigit('.')}
+              className="py-3 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-surface-container-highest font-black text-xl text-secondary transition-all active:scale-95 shadow-2xs cursor-pointer"
+            >
+              ,
             </button>
           </div>
 
