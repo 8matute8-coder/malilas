@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, isTabMode = false }) {
   if (!isOpen) return null;
@@ -78,6 +78,44 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, i
       if (onClose && !isTabMode) onClose();
     }, 1200);
   };
+
+  // PHYSICAL KEYBOARD LISTENER (NUMPAD, '+' FOR ADD, 'ENTER' FOR SALE CONFIRMATION)
+  useEffect(() => {
+    if (!isOpen || isSuccess) return;
+
+    const handleKeyDown = (e) => {
+      // Ignore keypress if typing inside a text input outside the calculator
+      const activeTag = document.activeElement?.tagName;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)) {
+        return;
+      }
+
+      const key = e.key;
+
+      if (key >= '0' && key <= '9') {
+        e.preventDefault();
+        handleDigit(key);
+      } else if (key === '.' || key === ',') {
+        e.preventDefault();
+        handleDigit('.');
+      } else if (key === '+') {
+        e.preventDefault();
+        handleAddAmount();
+      } else if (key === 'Enter') {
+        e.preventDefault();
+        handleFinishPayment();
+      } else if (key === 'Backspace') {
+        e.preventDefault();
+        handleBackspace();
+      } else if (key === 'Escape' || key.toLowerCase() === 'c') {
+        e.preventDefault();
+        handleClearCurrent();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isSuccess, currentInput, breakdown, totalAcumulado]);
 
   return (
     <div className={`w-full ${isTabMode ? 'bg-transparent shadow-none border-0 p-0 my-0' : 'max-w-xl mx-auto bg-white rounded-3xl shadow-lg border-2 border-emerald-500 my-2'} overflow-hidden flex flex-col justify-between animate-fade-in transition-all duration-300`}>
@@ -306,8 +344,8 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, i
             </button>
           </div>
 
-          {/* Footer Action Button */}
-          <div className="pt-2 w-full">
+          {/* Footer Action Button & Keyboard Hint */}
+          <div className="pt-2 w-full flex flex-col gap-2">
             <button
               type="button"
               disabled={totalAcumulado <= 0 && currentInput === ''}
@@ -323,6 +361,12 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, i
                 REGISTRAR VENTA {totalAcumulado > 0 ? `($${formatPrice(totalAcumulado)})` : (currentInput !== '' ? `($${formatPrice(currentInput)})` : '')}
               </span>
             </button>
+
+            {/* Keyboard Numpad Shortcut Hint */}
+            <div className="text-[10px] text-center font-bold text-emerald-900 bg-emerald-50/90 py-1.5 px-3 rounded-xl border border-emerald-200 flex items-center justify-center gap-1.5 shadow-2xs">
+              <span className="material-symbols-outlined text-xs text-emerald-700">keyboard</span>
+              <span>Teclado Físico Numpad: <b>[0-9]</b> dígitos • <b>[+]</b> sumar • <b>[Enter]</b> cobrar • <b>[Backspace]</b> borrar</span>
+            </div>
           </div>
 
         </div>
