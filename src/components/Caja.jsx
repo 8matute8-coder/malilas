@@ -8,6 +8,7 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
   const { addOrder } = ordersData || {};
   const { recordSale } = salesData || {};
   const [showCalculator, setShowCalculator] = useState(false);
+  const [leftTab, setLeftTab] = useState('ticket'); // 'ticket' or 'calculadora'
   
   const [cart, setCart] = useState(() => {
     try {
@@ -199,248 +200,233 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
           <h2 className="text-2xl font-bold text-on-surface">Caja Registradora</h2>
           <p className="text-xs text-secondary">Ingreso rápido directo desde catálogo o con calculadora dinámicas</p>
         </div>
-
-        {/* Action Button: Abrir/Ocultar Calculadora Desplegable hacia abajo */}
-        <button
-          onClick={() => setShowCalculator(prev => !prev)}
-          className={`w-full sm:w-auto font-extrabold text-xs px-5 py-3 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer ${
-            showCalculator 
-              ? 'bg-emerald-950 text-emerald-300 border border-emerald-700' 
-              : 'bg-gradient-to-r from-emerald-700 to-emerald-600 hover:from-emerald-800 hover:to-emerald-700 text-white'
-          }`}
-        >
-          <span className="material-symbols-outlined text-lg">
-            {showCalculator ? 'expand_less' : 'point_of_sale'}
-          </span>
-          <span>{showCalculator ? '▲ Ocultar Calculadora' : '⚡ Calculadora de Venta Rápida'}</span>
-        </button>
       </div>
 
-      {/* POS Calculator Accordion (Desplegable que se desenrosca hacia abajo) */}
-      <CalculadoraCajaModal
-        isOpen={showCalculator}
-        onClose={() => setShowCalculator(false)}
-        onConfirmSale={handleConfirmQuickCalculatorSale}
-      />
-
-      {/* POS Main Grid: Ticket Panel + Catalog Search */}
+      {/* POS Main Grid: Ticket / Calculator Panel (Left) + Catalog Search (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
         
-        {/* TICKET / CARRITO DE VENTA PANEL (Col 4 en XL, Col 5 en LG) */}
+        {/* LEFT COLUMN: TICKET DE VENTA ACTUAL / CALCULADORA DUAL TABBED PANEL */}
         <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-4">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-surface-container-low flex flex-col gap-4">
-            <div className="flex justify-between items-center border-b border-surface-container-highest pb-3">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary text-xl">receipt_long</span>
-                <h3 className="font-bold text-lg text-on-surface">Ticket de Venta Actual</h3>
-              </div>
+          <div className="bg-white rounded-3xl p-5 shadow-sm border border-surface-container-low flex flex-col gap-4">
+            
+            {/* Dual Tab Header Bar (Ticket de Venta / Calculadora) */}
+            <div className="flex items-center gap-1.5 p-1.5 bg-surface-container-low rounded-2xl border border-surface-container-highest">
+              <button
+                type="button"
+                onClick={() => setLeftTab('ticket')}
+                className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs ${
+                  leftTab === 'ticket'
+                    ? 'bg-white text-primary border border-surface-container-highest'
+                    : 'text-secondary hover:text-on-surface hover:bg-white/60'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">receipt_long</span>
+                <span>Ticket Actual {cart.length > 0 && `(${cart.length})`}</span>
+              </button>
 
-              {cart.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm('¿Deseas limpiar todo el pedido actual?')) {
-                      setCart([]);
-                      setIsManualOverride(false);
-                      setManualTotal('');
-                    }
-                  }}
-                  className="text-error hover:bg-error-container/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-error/20 active:scale-95"
-                  title="Vaciar ticket si la persona se arrepintió"
-                >
-                  <span className="material-symbols-outlined text-base">delete_sweep</span>
-                  <span>Limpiar Pedido</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setLeftTab('calculadora')}
+                className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs ${
+                  leftTab === 'calculadora'
+                    ? 'bg-gradient-to-r from-emerald-700 to-emerald-600 text-white'
+                    : 'text-secondary hover:text-on-surface hover:bg-white/60'
+                }`}
+              >
+                <span className="material-symbols-outlined text-base">point_of_sale</span>
+                <span>⚡ Calculadora</span>
+              </button>
             </div>
 
-            {cart.length === 0 ? (
-              <p className="text-secondary text-center py-6">Selecciona un producto a la derecha para añadirlo al ticket.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {cart.map(item => {
-                  const liveProd = products.find(p => p.id === item.product.id);
-                  const availableStock = liveProd ? (liveProd.stockActual || 0) : (item.product.stockActual || 0);
-                  const isInsufficientStock = item.quantity > availableStock;
+            {/* PESTAÑA 1: TICKET DE VENTA ACTUAL */}
+            {leftTab === 'ticket' ? (
+              <div className="flex flex-col gap-4 animate-fade-in">
+                <div className="flex justify-between items-center border-b border-surface-container-highest pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-xl">receipt_long</span>
+                    <h3 className="font-bold text-base text-on-surface">Detalle del Ticket</h3>
+                  </div>
 
-                  return (
-                    <div 
-                      key={item.product.id} 
-                      className={`p-3.5 rounded-xl border flex flex-col gap-2.5 transition-colors ${
-                        isInsufficientStock 
-                          ? 'bg-amber-50/80 border-amber-300' 
-                          : 'bg-surface-container-low border-surface-container-highest'
-                      }`}
+                  {cart.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('¿Deseas limpiar todo el pedido actual?')) {
+                          setCart([]);
+                          setIsManualOverride(false);
+                          setManualTotal('');
+                        }
+                      }}
+                      className="text-error hover:bg-error-container/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors border border-error/20 active:scale-95 cursor-pointer"
+                      title="Vaciar ticket si la persona se arrepintió"
                     >
-                      {/* Top Row: Name + Remove */}
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="min-w-0 flex-grow">
-                          <h4 className="font-bold text-on-surface text-base truncate">{item.product.nombre}</h4>
-                          <p className="text-xs text-secondary">
-                            ${formatPrice(item.product.precioVenta)} / {item.product.tipoVenta === 'grs' ? '100g' : item.product.tipoVenta}
-                          </p>
+                      <span className="material-symbols-outlined text-base">delete_sweep</span>
+                      <span>Limpiar Pedido</span>
+                    </button>
+                  )}
+                </div>
+
+                {cart.length === 0 ? (
+                  <p className="text-secondary text-center py-8 text-xs font-semibold">Selecciona un producto a la derecha para añadirlo al ticket.</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {cart.map(item => {
+                      const liveProd = products.find(p => p.id === item.product.id);
+                      const availableStock = liveProd ? (liveProd.stockActual || 0) : (item.product.stockActual || 0);
+                      const isInsufficientStock = item.quantity > availableStock;
+
+                      return (
+                        <div 
+                          key={item.product.id} 
+                          className={`p-3.5 rounded-xl border flex flex-col gap-2.5 transition-colors ${
+                            isInsufficientStock 
+                              ? 'bg-amber-50/80 border-amber-300' 
+                              : 'bg-surface-container-low border-surface-container-highest'
+                          }`}
+                        >
+                          {/* Top Row: Name + Remove */}
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0 flex-grow">
+                              <h4 className="font-bold text-on-surface text-base truncate">{item.product.nombre}</h4>
+                              <p className="text-xs text-secondary">
+                                ${formatPrice(item.product.precioVenta)} / {item.product.tipoVenta === 'grs' ? '100g' : item.product.tipoVenta}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-bold text-primary text-lg">${formatPrice(getItemPrice(item))}</span>
+                              <button 
+                                className="text-error hover:bg-error-container/30 p-1.5 rounded-full transition-colors cursor-pointer"
+                                onClick={() => removeFromCart(item.product.id)}
+                                title="Eliminar del ticket"
+                              >
+                                <span className="material-symbols-outlined text-lg">delete</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* INLINE STOCK WARNING NOTICE INSIDE TICKET ITEM */}
+                          {isInsufficientStock && (
+                            <div className="bg-amber-100/90 text-amber-950 px-2.5 py-1 rounded-lg border border-amber-300 text-[11px] font-bold flex items-center justify-between shadow-2xs">
+                              <span className="flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs text-amber-800">warning</span>
+                                <span>Stock insuficiente: Quedan {formatQuantity(availableStock)} {item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}</span>
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Quick Adjust Presets & Quantity Row */}
+                          <div className="flex justify-between items-center pt-2 border-t border-surface-container-highest/60 text-xs">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] text-secondary font-medium mr-1">Sumar:</span>
+                              {[1, 2, 6].map(num => (
+                                <button
+                                  key={num}
+                                  type="button"
+                                  onClick={() => addPresetToItem(item.product.id, item.product.tipoVenta === 'grs' ? num * 100 : num)}
+                                  className="px-2 py-0.5 rounded-md bg-white border border-surface-container-highest hover:bg-surface-container-high font-bold text-secondary text-[11px] shadow-2xs transition-colors cursor-pointer"
+                                >
+                                  +{item.product.tipoVenta === 'grs' ? `${num * 100}g` : num}
+                                </button>
+                              ))}
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-secondary font-medium">Cant:</span>
+                              <input
+                                type="number"
+                                step={item.product.tipoVenta === 'grs' ? '50' : '0.1'}
+                                min="0"
+                                className="w-16 bg-white border border-surface-container-highest rounded-lg p-1 text-center font-bold text-on-surface outline-none focus:border-primary"
+                                value={item.quantity}
+                                onChange={(e) => updateQuantity(item.product.id, parseFloat(e.target.value) || 0)}
+                              />
+                              <span className="text-secondary font-medium">{item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-bold text-primary text-lg">${formatPrice(getItemPrice(item))}</span>
-                          <button 
-                            className="text-error hover:bg-error-container/30 p-1.5 rounded-full transition-colors"
-                            onClick={() => removeFromCart(item.product.id)}
-                            title="Eliminar del ticket"
-                          >
-                            <span className="material-symbols-outlined text-lg">delete</span>
-                          </button>
+                      );
+                    })}
+
+                    {/* Final Totals & Actions */}
+                    <div className="bg-emerald-50/80 p-4 rounded-xl border border-emerald-200 flex flex-col gap-3 mt-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="text-xs font-bold text-secondary uppercase block">Monto Total Calculado</span>
+                          <span className="text-xs text-secondary">
+                            {isManualOverride ? '⚠️ Total modificado manualmente' : 'Suma de productos seleccionados'}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-2xl font-black text-primary block">${formatPrice(finalTotal)}</span>
+                          {!isManualOverride && (
+                            <span className="text-[10px] text-primary font-bold">Redondeado por $10</span>
+                          )}
                         </div>
                       </div>
 
-                      {/* INLINE STOCK WARNING NOTICE INSIDE TICKET ITEM */}
-                      {isInsufficientStock && (
-                        <div className="bg-amber-100/90 text-amber-950 px-2.5 py-1 rounded-lg border border-amber-300 text-[11px] font-bold flex items-center justify-between shadow-2xs">
-                          <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs text-amber-800">warning</span>
-                            <span>Stock insuficiente: Quedan {formatQuantity(availableStock)} {item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}</span>
-                          </span>
-                          <span className="text-error font-black">Faltan: {formatQuantity(item.quantity - availableStock)}</span>
+                      {/* Optional Override Total */}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="overrideTotal"
+                          checked={isManualOverride}
+                          onChange={(e) => {
+                            setIsManualOverride(e.target.checked);
+                            if (e.target.checked) {
+                              setManualTotal(roundedCalculatedTotal.toString());
+                            }
+                          }}
+                          className="w-4 h-4 text-primary rounded cursor-pointer"
+                        />
+                        <label htmlFor="overrideTotal" className="text-xs font-bold text-secondary cursor-pointer">
+                          Modificar cobro final manualmente
+                        </label>
+                      </div>
+
+                      {isManualOverride && (
+                        <div className="flex items-center gap-2 animate-fade-in">
+                          <span className="text-xs font-bold text-secondary">Nuevo Total ($):</span>
+                          <input
+                            type="number"
+                            className="w-32 bg-surface-container-low border border-primary rounded-xl p-2 font-bold text-sm text-primary outline-none"
+                            value={manualTotal}
+                            onChange={(e) => setManualTotal(e.target.value)}
+                            placeholder={roundedCalculatedTotal.toString()}
+                          />
                         </div>
                       )}
 
-                      {/* Quantity Controls & Cumulative Presets */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-surface-container-highest">
-                        {/* Accumulator Presets */}
-                        <div className="flex gap-1 overflow-x-auto no-scrollbar items-center">
-                          <span className="text-[10px] font-bold text-secondary mr-1">Sumar:</span>
-                          {item.product.tipoVenta === 'kg' && [
-                            { label: '+1/4', val: 0.25 },
-                            { label: '+1/2', val: 0.5 },
-                            { label: '+1kg', val: 1.0 }
-                          ].map(preset => (
-                            <button
-                              key={preset.label}
-                              type="button"
-                              onClick={() => addPresetToItem(item.product.id, preset.val)}
-                              className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
-                            >
-                              {preset.label}
-                            </button>
-                          ))}
+                      {/* Checkout Actions */}
+                      <div className="grid grid-cols-2 gap-3 mt-1">
+                        <button
+                          onClick={() => setShowDeliveryModal(true)}
+                          className="py-3 px-4 rounded-xl border border-primary text-primary hover:bg-primary-container/20 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-base">local_shipping</span>
+                          <span>Envío / Delivery</span>
+                        </button>
 
-                          {item.product.tipoVenta === 'grs' && [
-                            { label: '+100g', val: 100 },
-                            { label: '+250g', val: 250 },
-                            { label: '+500g', val: 500 }
-                          ].map(preset => (
-                            <button
-                              key={preset.label}
-                              type="button"
-                              onClick={() => addPresetToItem(item.product.id, preset.val)}
-                              className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
-                            >
-                              {preset.label}
-                            </button>
-                          ))}
-
-                          {item.product.tipoVenta === 'unidad' && [
-                            { label: '+1', val: 1 },
-                            { label: '+2', val: 2 },
-                            { label: '+6', val: 6 }
-                          ].map(preset => (
-                            <button
-                              key={preset.label}
-                              type="button"
-                              onClick={() => addPresetToItem(item.product.id, preset.val)}
-                              className="px-2 py-1 rounded-lg bg-surface-container-high text-on-surface font-bold text-[10px] border border-surface-container-highest hover:bg-primary-container/30 transition-all active:scale-95"
-                            >
-                              {preset.label}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Manual Input Quantity */}
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-secondary font-medium">Cant:</span>
-                          <input
-                            type="number"
-                            step="any"
-                            className="w-16 bg-white border border-surface-container-highest rounded-lg p-1 text-center font-bold text-sm text-on-surface outline-none focus:border-primary"
-                            value={item.quantity}
-                            onChange={(e) => updateQuantity(item.product.id, parseFloat(e.target.value) || 0)}
-                          />
-                          <span className="text-xs text-secondary font-medium">{item.product.tipoVenta === 'grs' ? 'g' : item.product.tipoVenta}</span>
-                        </div>
+                        <button
+                          onClick={handleConfirmSale}
+                          className="py-3 px-4 rounded-xl bg-primary hover:bg-surface-tint text-white font-bold text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-base">check_circle</span>
+                          <span>Confirmar Venta</span>
+                        </button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Total Summary */}
-            {cart.length > 0 && (
-              <div className="border-t border-surface-container-highest pt-4 flex flex-col gap-3">
-                <div className="bg-primary-container/20 p-3.5 rounded-xl border border-primary/20 flex justify-between items-center">
-                  <div>
-                    <span className="text-xs font-bold text-secondary uppercase block">Monto Total Calculado</span>
-                    <span className="text-xs text-secondary">
-                      {isManualOverride ? '⚠️ Total modificado manualmente' : 'Suma de productos seleccionados'}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl font-black text-primary block">${formatPrice(finalTotal)}</span>
-                    {!isManualOverride && (
-                      <span className="text-[10px] text-primary font-bold">Redondeado por $10</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Optional Override Total */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="overrideTotal"
-                    checked={isManualOverride}
-                    onChange={(e) => {
-                      setIsManualOverride(e.target.checked);
-                      if (e.target.checked) {
-                        setManualTotal(roundedCalculatedTotal.toString());
-                      }
-                    }}
-                    className="w-4 h-4 text-primary rounded cursor-pointer"
-                  />
-                  <label htmlFor="overrideTotal" className="text-xs font-bold text-secondary cursor-pointer">
-                    Modificar cobro final manualmente
-                  </label>
-                </div>
-
-                {isManualOverride && (
-                  <div className="flex items-center gap-2 animate-fade-in">
-                    <span className="text-xs font-bold text-secondary">Nuevo Total ($):</span>
-                    <input
-                      type="number"
-                      className="w-32 bg-surface-container-low border border-primary rounded-xl p-2 font-bold text-sm text-primary outline-none"
-                      value={manualTotal}
-                      onChange={(e) => setManualTotal(e.target.value)}
-                      placeholder={roundedCalculatedTotal.toString()}
-                    />
                   </div>
                 )}
-
-                {/* Checkout Actions */}
-                <div className="grid grid-cols-2 gap-3 mt-1">
-                  <button
-                    onClick={() => setShowDeliveryModal(true)}
-                    className="py-3 px-4 rounded-xl border border-primary text-primary hover:bg-primary-container/20 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-base">local_shipping</span>
-                    <span>Envío / Delivery</span>
-                  </button>
-
-                  <button
-                    onClick={handleConfirmSale}
-                    className="py-3 px-4 rounded-xl bg-primary hover:bg-surface-tint text-white font-bold text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-base">check_circle</span>
-                    <span>Confirmar Venta</span>
-                  </button>
-                </div>
+              </div>
+            ) : (
+              /* PESTAÑA 2: CALCULADORA DE VENTA RÁPIDA POS */
+              <div className="animate-fade-in">
+                <CalculadoraCajaModal
+                  isOpen={true}
+                  onClose={() => setLeftTab('ticket')}
+                  onConfirmSale={handleConfirmQuickCalculatorSale}
+                  isTabMode={true}
+                />
               </div>
             )}
           </div>

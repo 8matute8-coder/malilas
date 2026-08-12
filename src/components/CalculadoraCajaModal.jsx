@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale }) {
+export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale, isTabMode = false }) {
   if (!isOpen) return null;
 
   const [currentInput, setCurrentInput] = useState('');
@@ -75,30 +75,32 @@ export default function CalculadoraCajaModal({ isOpen, onClose, onConfirmSale })
       setBreakdown([]);
       setCurrentInput('');
       setSaleNumberToday(Math.floor(100 + Math.random() * 900));
-      onClose();
+      if (onClose && !isTabMode) onClose();
     }, 1200);
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto bg-white rounded-3xl shadow-lg border-2 border-emerald-500 overflow-hidden flex flex-col justify-between my-2 animate-fade-in transition-all duration-300">
+    <div className={`w-full ${isTabMode ? 'bg-transparent shadow-none border-0 p-0 my-0' : 'max-w-xl mx-auto bg-white rounded-3xl shadow-lg border-2 border-emerald-500 my-2'} overflow-hidden flex flex-col justify-between animate-fade-in transition-all duration-300`}>
       
-      {/* Header Bar Desplegable */}
-      <div className="flex justify-between items-center px-4 py-3 border-b border-surface-container-highest bg-emerald-50/80 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-emerald-700 text-xl">point_of_sale</span>
-          <h2 className="text-base font-black text-on-surface">Calculadora de Venta Rápida POS</h2>
-          <span className="bg-emerald-100 text-emerald-900 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border border-emerald-300">
-            N° {saleNumberToday}
-          </span>
+      {/* Header Bar Desplegable (Solo si no es modo pestaña) */}
+      {!isTabMode && (
+        <div className="flex justify-between items-center px-4 py-3 border-b border-surface-container-highest bg-emerald-50/80 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-emerald-700 text-xl">point_of_sale</span>
+            <h2 className="text-base font-black text-on-surface">Calculadora de Venta Rápida POS</h2>
+            <span className="bg-emerald-100 text-emerald-900 text-[10px] font-extrabold px-2.5 py-0.5 rounded-md border border-emerald-300">
+              N° {saleNumberToday}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 rounded-xl bg-white hover:bg-surface-container-high text-secondary border border-surface-container-highest flex items-center gap-1 transition-colors cursor-pointer text-xs font-bold shadow-2xs"
+            title="Ocultar Calculadora"
+          >
+            <span>✕ Ocultar Calculadora</span>
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="px-3 py-1.5 rounded-xl bg-white hover:bg-surface-container-high text-secondary border border-surface-container-highest flex items-center gap-1 transition-colors cursor-pointer text-xs font-bold shadow-2xs"
-          title="Ocultar Calculadora"
-        >
-          <span>✕ Ocultar Calculadora</span>
-        </button>
-      </div>
+      )}
 
       {/* Content Body */}
       {isSuccess ? (
