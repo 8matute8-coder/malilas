@@ -19,6 +19,11 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
   const [categoryFilter, setCategoryFilter] = useState('todas');
   const [timeFilter, setTimeFilter] = useState('mes'); // 'hoy', 'semana', 'mes', 'todo'
 
+  // Pagination & Config States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [showConfigMenu, setShowConfigMenu] = useState(false);
+
   const [showStats, setShowStats] = useState(false);
   const [selectedTransactionDetail, setSelectedTransactionDetail] = useState(null);
 
@@ -178,6 +183,24 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
     });
   }, [masterLedger, timeFilter, typeFilter, categoryFilter, searchTerm]);
 
+  // Check if any filter is different from default
+  const isFilteredActive = timeFilter !== 'mes' || typeFilter !== 'todos' || categoryFilter !== 'todas' || searchTerm.trim() !== '';
+
+  const handleResetFilters = () => {
+    setTimeFilter('mes');
+    setTypeFilter('todos');
+    setCategoryFilter('todas');
+    setSearchTerm('');
+    setCurrentPage(1);
+  };
+
+  // Pagination Slice
+  const totalPages = Math.max(1, Math.ceil(filteredLedger.length / pageSize));
+  const paginatedLedger = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredLedger.slice(start, start + pageSize);
+  }, [filteredLedger, currentPage, pageSize]);
+
   // -------------------------------------------------------------
   // METRICS & STATS CALCULATIONS
   // -------------------------------------------------------------
@@ -315,7 +338,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
   };
 
   const handleDeleteRecord = async (item) => {
-    if (window.confirm(`¿Estás seguro de eliminar este registro (${item.tipo}: ${item.proveedorCliente})?`)) {
+    if (window.confirm(`⚠️ ¿Estás seguro de anular/eliminar este registro contable (${item.tipo}: ${item.proveedorCliente}) por $${formatPrice(item.monto)}?\n\nEsta acción recalculará los balances globales y no se puede deshacer.`)) {
       if (item.recordType === 'purchase') {
         await deletePurchase(item.originalId);
       } else if (item.recordType === 'expense') {
@@ -432,20 +455,40 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
             <span>+ Registrar Gasto</span>
           </button>
 
-          {/* DATABASE RESET BUTTON */}
-          <button
-            onClick={() => setShowResetModalStep1(true)}
-            className="bg-rose-50 hover:bg-rose-100 text-error border border-rose-200 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer ml-auto sm:ml-0"
-            title="Reiniciar base de datos completa conservando productos con stock 0"
-          >
-            <span className="material-symbols-outlined text-base">delete_forever</span>
-            <span>⚠️ Reiniciar Base de Datos</span>
-          </button>
+          {/* PROTECTED SYSTEM OPTIONS DROPDOWN */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowConfigMenu(!showConfigMenu)}
+              className="p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-secondary border border-surface-container-highest flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+              title="Opciones avanzadas del sistema"
+            >
+              <span className="material-symbols-outlined text-lg">more_vert</span>
+            </button>
+
+            {showConfigMenu && (
+              <div className="absolute right-0 top-12 w-64 bg-white rounded-2xl p-2 shadow-xl border border-surface-container-highest z-30 animate-fade-in flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-secondary uppercase px-3 py-1.5 block">Seguridad del Sistema</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowConfigMenu(false);
+                    setShowResetModalStep1(true);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-error hover:bg-error-container/20 flex items-center gap-2 transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base">delete_forever</span>
+                  <span>⚠️ Reiniciar Base de Datos</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Metrics Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Card 1: Ingresos */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-container-low border-l-4 border-l-emerald-600 flex flex-col justify-between">
           <div>
             <div className="flex justify-between items-center text-secondary mb-1">
@@ -459,7 +502,8 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
           </span>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-container-low border-l-4 border-l-rose-600 flex flex-col justify-between">
+        {/* Card 2: Egresos (PROPORTIONAL STACKED BAR & 2-LINE SUB-METRICS) */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-surface-container-low border-l-4 border-l-rose-600 flex flex-col justify-between gap-3">
           <div>
             <div className="flex justify-between items-center text-secondary mb-1">
               <span className="text-xs font-bold uppercase tracking-wider">Egresos Totales (Compras/Gastos)</span>
@@ -467,25 +511,56 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
             </div>
             <h3 className="text-3xl font-black text-on-surface">${formatPrice(statsSummary.egresos)}</h3>
           </div>
-          <div className="text-[11px] text-rose-900 font-bold flex flex-wrap gap-1 mt-3">
-            <span className="bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">Stock (en Inventario): ${formatPrice(statsSummary.comprasStock)}</span>
-            <span className="bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Gastos/Servicios: ${formatPrice(statsSummary.comprasInsumos + statsSummary.gastosFijos)}</span>
+
+          <div className="flex flex-col gap-2 mt-1">
+            {/* Stacked Proportional Bar */}
+            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden flex shadow-inner">
+              <div 
+                className="bg-emerald-600 h-full transition-all duration-500" 
+                style={{ width: `${statsSummary.egresos > 0 ? Math.min(100, Math.round((statsSummary.comprasStock / statsSummary.egresos) * 100)) : 50}%` }}
+                title={`Compras de Stock: ${statsSummary.egresos > 0 ? Math.round((statsSummary.comprasStock / statsSummary.egresos) * 100) : 0}%`}
+              />
+              <div 
+                className="bg-rose-500 h-full transition-all duration-500" 
+                style={{ width: `${statsSummary.egresos > 0 ? Math.min(100, Math.round(((statsSummary.comprasInsumos + statsSummary.gastosFijos) / statsSummary.egresos) * 100)) : 50}%` }}
+                title={`Gastos / Insumos: ${statsSummary.egresos > 0 ? Math.round(((statsSummary.comprasInsumos + statsSummary.gastosFijos) / statsSummary.egresos) * 100) : 0}%`}
+              />
+            </div>
+
+            {/* 2-line Sub-metric labels */}
+            <div className="flex flex-col gap-0.5 text-[11px] font-extrabold text-secondary">
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0"></span>
+                  <span>Stock Inventario:</span>
+                </span>
+                <span className="text-emerald-950 font-black">${formatPrice(statsSummary.comprasStock)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
+                  <span>Gastos / Servicios:</span>
+                </span>
+                <span className="text-rose-950 font-black">${formatPrice(statsSummary.comprasInsumos + statsSummary.gastosFijos)}</span>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Card 3: Balance General Neto (ACCESSIBLE HIGH-CONTRAST WHITE TEXT) */}
         <div className={`rounded-3xl p-6 shadow-md flex flex-col justify-between text-white ${
           statsSummary.balance >= 0 
-            ? 'bg-gradient-to-br from-emerald-950 to-primary border border-white/10' 
-            : 'bg-gradient-to-br from-red-950 to-error border border-white/10'
+            ? 'bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 border border-emerald-700/80' 
+            : 'bg-gradient-to-br from-red-950 via-red-900 to-red-950 border border-red-700/80'
         }`}>
           <div>
-            <div className="flex justify-between items-center text-white/80 mb-1">
-              <span className="text-xs font-bold uppercase tracking-wider">Balance General Neto</span>
-              <span className="material-symbols-outlined">{statsSummary.balance >= 0 ? 'account_balance_wallet' : 'warning'}</span>
+            <div className="flex justify-between items-center text-white mb-1">
+              <span className="text-xs font-black uppercase tracking-wider text-white">BALANCE GENERAL NETO</span>
+              <span className="material-symbols-outlined text-white">{statsSummary.balance >= 0 ? 'account_balance_wallet' : 'warning'}</span>
             </div>
-            <h3 className="text-3xl font-black tracking-tight">${formatPrice(statsSummary.balance)}</h3>
+            <h3 className="text-3xl sm:text-4xl font-black text-white tracking-tight">${formatPrice(statsSummary.balance)}</h3>
           </div>
-          <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold w-fit mt-3 backdrop-blur-xs">
+          <span className="bg-white/20 text-white border border-white/30 px-3.5 py-1 rounded-full text-xs font-black w-fit mt-3 backdrop-blur-xs shadow-2xs">
             {statsSummary.balance >= 0 ? '✓ Flujo neto positivo' : '⚠ Flujo neto negativo'}
           </span>
         </div>
@@ -539,16 +614,22 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-surface-container-low text-xs font-bold text-on-surface"
             placeholder="Buscar por proveedor, cliente, concepto o producto..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
 
-        {/* Dropdown Filters */}
+        {/* Dropdown Filters & Clear Filters Button */}
         <div className="flex flex-wrap items-center gap-2">
           <select
             className="bg-surface-container-low border border-surface-container-highest rounded-xl px-3 py-2.5 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer"
             value={timeFilter}
-            onChange={(e) => setTimeFilter(e.target.value)}
+            onChange={(e) => {
+              setTimeFilter(e.target.value);
+              setCurrentPage(1);
+            }}
           >
             <option value="hoy">📅 Hoy</option>
             <option value="semana">📅 Esta Semana</option>
@@ -559,7 +640,10 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
           <select
             className="bg-surface-container-low border border-surface-container-highest rounded-xl px-3 py-2.5 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer"
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            onChange={(e) => {
+              setTypeFilter(e.target.value);
+              setCurrentPage(1);
+            }}
           >
             <option value="todos">🏷️ Todos los Tipos</option>
             <option value="Venta">🟢 Solo Ventas</option>
@@ -570,7 +654,10 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
           <select
             className="bg-surface-container-low border border-surface-container-highest rounded-xl px-3 py-2.5 text-xs font-bold text-on-surface outline-none focus:border-primary cursor-pointer"
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
           >
             <option value="todas">📁 Todas las Categorías</option>
             <option value="Mercadería">📦 Mercadería (Stock)</option>
@@ -579,6 +666,18 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
             <option value="Servicios">💡 Servicios / Alquiler</option>
             <option value="Venta">🛒 Ventas</option>
           </select>
+
+          {/* CLEAR FILTERS BUTTON (VISIBLE IF ANY FILTER ACTIVE) */}
+          {isFilteredActive && (
+            <button
+              onClick={handleResetFilters}
+              className="bg-surface-container-high hover:bg-surface-container-highest text-secondary hover:text-on-surface border border-surface-container-highest px-3 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer shadow-2xs animate-fade-in"
+              title="Restablecer todos los filtros a la vista predeterminada"
+            >
+              <span className="material-symbols-outlined text-base">close</span>
+              <span>Limpiar Filtros</span>
+            </button>
+          )}
 
           <button
             onClick={exportToCSV}
@@ -593,7 +692,7 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
 
       {/* SINGLE UNIFIED EXCEL-LIKE TABLE */}
       <div className="bg-white rounded-3xl shadow-sm border border-surface-container-low overflow-hidden">
-        <div className="px-6 py-4 bg-surface-container-low border-b border-surface-container-highest flex justify-between items-center">
+        <div className="px-6 py-4 bg-surface-container-low border-b border-surface-container-highest flex justify-between items-center flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-primary text-xl">table_chart</span>
             <h3 className="font-extrabold text-on-surface text-base">Historial Único Unificado de Transacciones</h3>
@@ -611,19 +710,19 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                 <th className="py-3.5 px-3">Tipo</th>
                 <th className="py-3.5 px-3">Categoría</th>
                 <th className="py-3.5 px-3">Proveedor / Detalle</th>
-                <th className="py-3.5 px-3 text-right">Total Pagado / Cobrado</th>
+                <th className="py-3.5 px-4 text-right">Total Pagado / Cobrado</th>
                 <th className="py-3.5 px-4 sm:px-6 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-container-highest text-xs font-semibold">
-              {filteredLedger.length === 0 ? (
+              {paginatedLedger.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="py-12 text-center text-secondary italic">
                     No se encontraron transacciones que coincidan con los filtros seleccionados.
                   </td>
                 </tr>
               ) : (
-                filteredLedger.map((item) => (
+                paginatedLedger.map((item) => (
                   <tr key={item.id} className="hover:bg-surface-container-low/60 transition-colors">
                     {/* Fecha y Hora */}
                     <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap text-on-surface font-bold">
@@ -668,29 +767,29 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                       </div>
                     </td>
 
-                    {/* Total Pagado / Cobrado ($) */}
-                    <td className="py-3.5 px-3 text-right whitespace-nowrap">
+                    {/* Total Pagado / Cobrado ($) - ALINEADO A LA DERECHA */}
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <span className={`font-black text-sm block ${item.monto > 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                         {item.monto > 0 ? '+' : ''}${formatPrice(item.monto)}
                       </span>
                     </td>
 
-                    {/* Acciones */}
+                    {/* Acciones (ICONO PROHIBIDO / ANULAR REGISTRO Y DETALLE) */}
                     <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
                       <div className="flex justify-end items-center gap-1">
                         <button
                           onClick={() => setSelectedTransactionDetail(item)}
-                          className="p-1.5 text-secondary hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors"
+                          className="p-1.5 text-secondary hover:text-primary hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer"
                           title="Ver detalle completo"
                         >
                           <span className="material-symbols-outlined text-lg">visibility</span>
                         </button>
                         <button
                           onClick={() => handleDeleteRecord(item)}
-                          className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-lg transition-colors"
-                          title="Eliminar este registro"
+                          className="p-1.5 text-secondary hover:text-error hover:bg-error-container/20 rounded-lg transition-colors cursor-pointer"
+                          title="🚫 Anular / Eliminar este registro contable"
                         >
-                          <span className="material-symbols-outlined text-lg">delete</span>
+                          <span className="material-symbols-outlined text-lg">block</span>
                         </button>
                       </div>
                     </td>
@@ -698,8 +797,83 @@ export default function Contabilidad({ accountingData, inventoryData, salesData,
                 ))
               )}
             </tbody>
+
+            {/* TOTALES DE LA BÚSQUEDA ACTUAL (TFOOT SUMMARY ROW) */}
+            {filteredLedger.length > 0 && (
+              <tfoot className="bg-surface-container-low border-t-2 border-surface-container-highest text-xs font-extrabold text-on-surface">
+                <tr>
+                  <td colSpan="4" className="py-3.5 px-4 sm:px-6 text-left">
+                    <span className="text-secondary font-bold uppercase text-[11px] block">Totales de la búsqueda actual:</span>
+                    <span className="text-xs text-on-surface font-black">{filteredLedger.length} movimientos en la vista</span>
+                  </td>
+                  <td className="py-3.5 px-4 text-right font-black">
+                    <span className="text-emerald-700 block">+${formatPrice(statsSummary.ingresos)} (Ingresos)</span>
+                    <span className="text-rose-700 block">-${formatPrice(statsSummary.egresos)} (Egresos)</span>
+                    <span className={`block border-t border-surface-container-highest pt-1 mt-1 font-black text-sm ${statsSummary.balance >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
+                      Neto: ${formatPrice(statsSummary.balance)}
+                    </span>
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
+
+        {/* PAGINATION CONTROLS BAR */}
+        {filteredLedger.length > 0 && (
+          <div className="px-6 py-3.5 bg-surface-container-low/80 border-t border-surface-container-highest flex flex-col sm:flex-row justify-between items-center gap-3 text-xs font-bold text-secondary">
+            <div className="flex items-center gap-2">
+              <span>Filas por página:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white border border-surface-container-highest rounded-lg px-2 py-1 outline-none focus:border-primary cursor-pointer font-bold text-on-surface shadow-2xs"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span>Página {currentPage} de {totalPages}</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className={`px-3 py-1.5 rounded-lg border flex items-center gap-1 font-bold transition-all shadow-2xs ${
+                    currentPage === 1 
+                      ? 'bg-surface-container-high text-secondary/40 border-surface-container-highest cursor-not-allowed'
+                      : 'bg-white text-on-surface border-surface-container-highest hover:bg-surface-container-high cursor-pointer active:scale-95'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-sm">chevron_left</span>
+                  <span>Anterior</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  className={`px-3 py-1.5 rounded-lg border flex items-center gap-1 font-bold transition-all shadow-2xs ${
+                    currentPage >= totalPages 
+                      ? 'bg-surface-container-high text-secondary/40 border-surface-container-highest cursor-not-allowed'
+                      : 'bg-white text-on-surface border-surface-container-highest hover:bg-surface-container-high cursor-pointer active:scale-95'
+                  }`}
+                >
+                  <span>Siguiente</span>
+                  <span className="material-symbols-outlined text-sm">chevron_right</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Detalle de Transacción */}
