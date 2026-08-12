@@ -208,15 +208,15 @@ export default function Tienda() {
           <div className="hidden md:flex items-center gap-3 text-secondary">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Atención: Lunes a Sábado (8-14hs | 17-21:30hs)</span>
+              <span>Atención: Lunes a Sábados (9:00 a 14:00 hs | 17:00 a 21:00 hs)</span>
             </span>
           </div>
         </div>
       </div>
 
-      {/* Top Header */}
+      {/* Top Header Bar */}
       <header className="bg-surface border-b border-surface-container-highest sticky top-0 z-40 px-4 md:px-8 py-3 flex justify-between items-center max-w-7xl mx-auto w-full shadow-sm">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('catalog')}>
           <img src="./logo.jpg" alt="La Malila Logo" className="h-10 md:h-12 w-auto object-contain rounded-full border border-primary/20 shadow-xs" />
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">La Malila</h1>
@@ -224,28 +224,32 @@ export default function Tienda() {
           </div>
         </div>
 
-        {/* Mobile / Desktop Nav */}
-        <nav className="flex items-center gap-2">
+        {/* Header Navigation (TIENDA TEXT + CARRITO PRIMARY CTA) */}
+        <nav className="flex items-center gap-4">
           <button
             onClick={() => setView('catalog')}
-            className={`px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1 transition-colors ${
-              view === 'catalog' ? 'bg-primary text-white' : 'text-secondary hover:bg-surface-container-low'
+            className={`px-2 py-1 text-sm font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+              view === 'catalog' 
+                ? 'text-primary border-b-2 border-primary' 
+                : 'text-secondary hover:text-primary'
             }`}
           >
-            <span className="material-symbols-outlined text-lg">shopping_basket</span>
+            <span className="material-symbols-outlined text-lg">storefront</span>
             <span>Tienda</span>
           </button>
           
           <button
             onClick={() => setView('cart')}
-            className={`relative px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1 transition-colors ${
-              view === 'cart' ? 'bg-primary text-white' : 'text-secondary hover:bg-surface-container-low'
+            className={`relative px-4 py-2 rounded-full text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95 ${
+              view === 'cart' 
+                ? 'bg-emerald-800 text-white ring-2 ring-emerald-400/50' 
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
             }`}
           >
             <span className="material-symbols-outlined text-lg">shopping_cart</span>
-            <span>Carrito</span>
+            <span>Ver Carrito</span>
             {cart.length > 0 && (
-              <span className="bg-error text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center -ml-1">
+              <span className="bg-white text-emerald-950 text-[11px] font-black px-1.5 py-0.5 rounded-full min-w-5 text-center shadow-2xs">
                 {cart.length}
               </span>
             )}
@@ -257,6 +261,50 @@ export default function Tienda() {
       <main className="flex-grow max-w-7xl mx-auto w-full px-4 md:px-8 pt-6">
         {view === 'catalog' ? (
           <div className="flex flex-col gap-6">
+            
+            {/* HERO SECTION BANNER */}
+            <div className="relative overflow-hidden bg-gradient-to-r from-emerald-900 via-emerald-800 to-emerald-950 text-white rounded-3xl shadow-md p-6 sm:p-8 md:p-10 flex flex-col md:flex-row justify-between items-center gap-6 border border-emerald-700/60 animate-fade-in">
+              {/* Background Glow Overlay */}
+              <div className="absolute -top-12 -right-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+              {/* Hero Text Content */}
+              <div className="flex flex-col gap-3 max-w-xl text-center md:text-left z-10">
+                <div className="inline-flex items-center justify-center md:justify-start gap-2 bg-emerald-500/20 border border-emerald-400/30 px-3.5 py-1 rounded-full text-xs font-black text-emerald-200 w-fit mx-auto md:mx-0 backdrop-blur-xs shadow-2xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>Frescura Garantizada 🌱</span>
+                </div>
+
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
+                  Del campo a tu mesa en <span className="text-emerald-300 underline decoration-amber-400 decoration-wavy decoration-2">San Miguel de Tucumán</span>
+                </h2>
+
+                <p className="text-xs sm:text-sm font-medium text-emerald-100/90 leading-relaxed">
+                  Frutas y verduras seleccionadas a mano cada mañana. Envíos directos a tu domicilio o retiro por nuestro local.
+                </p>
+
+                {/* Opening Hours Info Badge */}
+                <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 px-3.5 py-2 rounded-2xl text-xs font-extrabold text-white w-fit mx-auto md:mx-0 backdrop-blur-xs mt-1">
+                  <span className="material-symbols-outlined text-amber-300 text-base">schedule</span>
+                  <span>Lunes a Sábados: 9:00 a 14:00 hs | 17:00 a 21:00 hs</span>
+                </div>
+              </div>
+
+              {/* Hero Image Right */}
+              <div className="relative shrink-0 z-10">
+                <div className="w-40 h-40 sm:w-48 sm:h-48 md:w-52 md:h-52 rounded-3xl overflow-hidden border-2 border-white/20 shadow-xl group">
+                  <img
+                    src="./logo.jpg"
+                    alt="Frutas y Verduras La Malila"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                </div>
+                <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black text-[11px] px-3 py-1 rounded-xl shadow-lg border border-white/20 flex items-center gap-1">
+                  <span>🔥 100% Orgánico</span>
+                </div>
+              </div>
+            </div>
+
             {/* Search Input */}
             <div className="relative w-full max-w-2xl mx-auto md:mx-0">
               <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-secondary">
@@ -264,23 +312,23 @@ export default function Tienda() {
               </span>
               <input
                 type="text"
-                className="w-full bg-white border border-surface-container-highest focus:border-primary focus:ring-1 focus:ring-primary rounded-xl py-3 pl-12 pr-4 text-on-surface outline-none transition-all shadow-sm"
-                placeholder="Buscar frutas, verduras..."
+                className="w-full bg-white border border-surface-container-highest focus:border-primary focus:ring-1 focus:ring-primary rounded-xl py-3 pl-12 pr-4 text-on-surface outline-none transition-all shadow-sm text-xs sm:text-sm font-bold"
+                placeholder="🔍 Buscar frutas, verduras o promos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
-            {/* Category Chips */}
+            {/* Category Filter Chips (Interactive Hover States) */}
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
               {['Todas', '🔥 Ofertas', 'Frutas', 'Verduras'].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-5 py-2 rounded-full font-bold text-sm whitespace-nowrap transition-all ${
+                  className={`px-5 py-2.5 rounded-full font-extrabold text-xs sm:text-sm whitespace-nowrap transition-all cursor-pointer ${
                     selectedCategory === cat
-                      ? (cat === '🔥 Ofertas' ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md' : 'bg-primary-container text-on-primary-container shadow-sm')
-                      : 'bg-white border border-surface-container-highest text-secondary hover:bg-surface-container-low'
+                      ? (cat === '🔥 Ofertas' ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md scale-105' : 'bg-emerald-800 text-white shadow-sm scale-105')
+                      : 'bg-white border border-surface-container-highest text-secondary hover:bg-emerald-50 hover:text-emerald-950 hover:border-emerald-300 shadow-2xs hover:shadow-xs active:scale-95'
                   }`}
                 >
                   {cat}
@@ -366,9 +414,47 @@ export default function Tienda() {
                 })}
               </div>
 
+              {/* FRIENDLY VECTORIAL EMPTY STATE */}
               {availableProducts.length === 0 && (
-                <div className="text-center text-secondary py-12 bg-white rounded-xl border border-dashed border-surface-container-highest">
-                  No se encontraron productos disponibles en esta categoría.
+                <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border border-surface-container-low shadow-sm flex flex-col items-center justify-center gap-4 my-4 animate-fade-in max-w-2xl mx-auto">
+                  {/* SVG Vectorial Amigable de Canasta / Cajón de Verduras */}
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center shadow-inner">
+                    <svg className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 10h18M5 10l1 10h12l1-10M9 10V6a2 2 0 012-2h2a2 2 0 012 2v4M8 14h8M9 17h6" />
+                    </svg>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 max-w-md">
+                    <h3 className="text-lg sm:text-xl font-black text-on-surface">
+                      ¡Ups! Todavía estamos cosechando los productos de esta categoría 🌱
+                    </h3>
+                    <p className="text-xs sm:text-sm font-medium text-secondary">
+                      Vuelve pronto o explora otras secciones de nuestra huerta. ¡Cada mañana recibimos mercadería fresca!
+                    </p>
+                  </div>
+
+                  {/* CTA Buttons */}
+                  <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+                    <button
+                      onClick={() => {
+                        setSelectedCategory('🔥 Ofertas');
+                        setSearchTerm('');
+                      }}
+                      className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>🔥 Ver ofertas disponibles</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedCategory('Todas');
+                        setSearchTerm('');
+                      }}
+                      className="bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-300 font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-2xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>🥬 Ver todos los productos</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </section>
