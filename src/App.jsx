@@ -76,10 +76,10 @@ function App() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`h-full flex items-center gap-2 px-3 font-semibold text-sm border-b-2 transition-all relative ${
+              className={`h-full flex items-center gap-2 px-3.5 font-semibold text-sm border-b-2 transition-all relative cursor-pointer ${
                 activeTab === tab.id || (tab.id === 'contabilidad' && activeTab === 'estadisticas')
-                  ? 'border-primary text-primary font-bold'
-                  : 'border-transparent text-secondary hover:text-primary'
+                  ? 'border-primary text-primary font-bold bg-primary/5 rounded-t-xl'
+                  : 'border-transparent text-secondary hover:text-primary hover:bg-surface-container-low hover:border-primary/40 rounded-t-xl'
               }`}
             >
               <span className="material-symbols-outlined">{tab.icon}</span>

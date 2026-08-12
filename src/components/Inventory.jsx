@@ -1000,40 +1000,52 @@ export default function Inventory({ inventoryData, accountingData }) {
       {/* Title */}
       <h2 className="text-2xl font-extrabold text-on-surface tracking-tight">Resumen de Inventario</h2>
 
-      {/* Financial Valuation Summary Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-3xl p-5 shadow-xs border border-surface-container-low flex flex-col justify-between">
+      {/* Financial Valuation Summary Banner (COMPACT PADDING & TREND INDICATORS) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-2xs border border-surface-container-low flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-secondary uppercase tracking-wider block mb-1">INVERSIÓN EN STOCK (COSTO)</span>
-            <h3 className="text-2xl sm:text-3xl font-black text-blue-700">${formatPrice(inventoryValuation.totalCosto)}</h3>
+            <div className="flex justify-between items-center mb-0.5">
+              <span className="text-[11px] font-bold text-secondary uppercase tracking-wider">INVERSIÓN EN STOCK (COSTO)</span>
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-extrabold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                <span className="material-symbols-outlined text-xs">trending_up</span>+3.5%
+              </span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-blue-700">${formatPrice(inventoryValuation.totalCosto)}</h3>
           </div>
-          <span className="text-[11px] text-secondary font-medium mt-2">Costo total acumulado de compra</span>
+          <span className="text-[10px] text-secondary font-medium mt-1">Costo total acumulado de compra</span>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 shadow-xs border border-surface-container-low flex flex-col justify-between">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-2xs border border-surface-container-low flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-secondary uppercase tracking-wider block mb-1">GANANCIA ESPERADA TOTAL</span>
-            <h3 className="text-2xl sm:text-3xl font-black text-emerald-700">${formatPrice(inventoryValuation.totalGanancia)}</h3>
+            <div className="flex justify-between items-center mb-0.5">
+              <span className="text-[11px] font-bold text-secondary uppercase tracking-wider">GANANCIA ESPERADA TOTAL</span>
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                <span className="material-symbols-outlined text-xs">trending_up</span>+5.2%
+              </span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-emerald-700">${formatPrice(inventoryValuation.totalGanancia)}</h3>
           </div>
-          <span className="text-[11px] text-emerald-800 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 w-fit mt-2">
+          <span className="text-[10px] text-emerald-800 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 w-fit mt-1">
             {inventoryValuation.totalCosto > 0 ? `+${Math.round((inventoryValuation.totalGanancia / inventoryValuation.totalCosto) * 100)}% margen global` : '0%'}
           </span>
         </div>
 
         <div 
           onClick={() => setView('mermasHistory')}
-          className="bg-white rounded-3xl p-5 shadow-xs border border-surface-container-low flex flex-col justify-between cursor-pointer hover:bg-error-container/10 transition-colors"
+          className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-2xs border border-surface-container-low flex flex-col justify-between cursor-pointer hover:bg-error-container/10 transition-colors"
           title="Haz clic para ver el historial detallado de mermas"
         >
           <div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs font-bold text-error uppercase tracking-wider">PÉRDIDA POR MERMAS</span>
-              <span className="material-symbols-outlined text-error text-base">receipt_long</span>
+            <div className="flex justify-between items-center mb-0.5">
+              <span className="text-[11px] font-bold text-error uppercase tracking-wider">PÉRDIDA POR MERMAS</span>
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                <span className="material-symbols-outlined text-xs">trending_down</span>-1.2%
+              </span>
             </div>
-            <h3 className="text-2xl sm:text-3xl font-black text-error">${formatPrice(totalPerdidaMerma)}</h3>
+            <h3 className="text-xl sm:text-2xl font-black text-error">${formatPrice(totalPerdidaMerma)}</h3>
           </div>
 
-          <div className="mt-2 text-[11px]">
+          <div className="mt-1 text-[10px]">
             {mermas.length > 0 ? (
               <div className="space-y-0.5 text-secondary">
                 {mermas.slice(0, 2).map((m, idx) => {
@@ -1043,29 +1055,29 @@ export default function Inventory({ inventoryData, accountingData }) {
                   const costoUnit = p ? (p.costoPromedio || 0) : 0;
                   return (
                     <div key={idx} className="flex justify-between items-center text-[10px]">
-                      <span className="truncate max-w-[170px]">{pName} - {m.cantidad} {unit} - ${formatPrice(m.cantidad * (p ? p.precioVenta : 0))}</span>
-                      <span className="font-bold">${formatPrice(m.cantidad * costoUnit)}</span>
+                      <span className="truncate max-w-[170px]">{pName} - {m.cantidad} {unit}</span>
+                      <span className="font-bold text-error">-${formatPrice(m.cantidad * costoUnit)}</span>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <span className="text-secondary font-medium">0 registros mermados (Ver detalle)</span>
+              <span className="text-secondary font-medium">0 mermas registradas</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* TOP ACTION & SEARCH TOOLBAR */}
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-4 rounded-3xl border border-surface-container-low shadow-xs">
-        <div className="relative flex-grow max-w-md">
-          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary">
+      {/* TOP ACTION & SEARCH TOOLBAR (EXPANDED SEARCH BAR) */}
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-3.5 rounded-2xl border border-surface-container-low shadow-2xs">
+        <div className="relative flex-grow max-w-xl">
+          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary text-lg">
             search
           </span>
           <input
             type="text"
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-surface-container-low text-xs font-bold text-on-surface"
-            placeholder="Buscar productos por nombre..."
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-surface-container-low text-xs font-bold text-on-surface transition-all"
+            placeholder="🔍 Buscar productos por nombre, categoría o tipo de venta..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -1099,7 +1111,7 @@ export default function Inventory({ inventoryData, accountingData }) {
           {/* DESKTOP TABLE COLUMNS HEADER BAR (5 COLUMNS IN 1 LINE) */}
           <div className="hidden md:grid grid-cols-12 gap-3 bg-surface-container-low border border-surface-container-highest rounded-2xl px-5 py-3 text-xs font-black text-on-surface uppercase tracking-wider items-center shadow-2xs">
             <div className="col-span-3 text-left pl-2">Producto</div>
-            <div className="col-span-2 text-center">Costo Unitario</div>
+            <div className="col-span-2 text-right pr-4">Costo Unitario</div>
             <div className="col-span-2 text-center">Precio de Venta</div>
             <div className="col-span-2 text-center">Stock Actual</div>
             <div className="col-span-3 text-right pr-2">Acciones</div>
@@ -1390,36 +1402,27 @@ export default function Inventory({ inventoryData, accountingData }) {
                         </div>
                       </div>
 
-                      {/* Col 2: Costo Unitario (Col-span 2) */}
-                      <div className="col-span-2 text-center font-extrabold text-xs text-on-surface">
+                      {/* Col 2: Costo Unitario (Col-span 2 - Alineado a la Derecha) */}
+                      <div className="col-span-2 text-right pr-4 font-black text-xs text-on-surface">
                         ${formatPrice(p.costoPromedio)}
                       </div>
 
-                      {/* Col 3: Precio de venta (Col-span 2) */}
+                      {/* Col 3: Precio de venta (Col-span 2 - INPUT DIRECTO RAPIDO) */}
                       <div className="col-span-2 flex items-center justify-center gap-1.5">
-                        <div className="inline-flex items-center bg-emerald-50/90 border border-emerald-200/90 rounded-2xl p-1 shadow-2xs">
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
-                            className="w-6 h-6 rounded-xl bg-white hover:bg-emerald-100 text-emerald-900 font-extrabold text-xs flex items-center justify-center cursor-pointer shadow-2xs"
-                          >
-                            -
-                          </button>
-                          <span 
-                            onClick={(e) => handleStartEditPrice(p, e)}
-                            className="font-black text-emerald-900 px-2 text-xs cursor-pointer hover:underline"
-                          >
-                            +${formatPrice(p.precioVenta)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
-                            className="w-6 h-6 rounded-xl bg-white hover:bg-emerald-100 text-emerald-900 font-extrabold text-xs flex items-center justify-center cursor-pointer shadow-2xs"
-                          >
-                            +
-                          </button>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-2.5 text-xs font-black text-emerald-800 pointer-events-none">$</span>
+                          <input
+                            type="number"
+                            className="w-24 pl-6 pr-2 py-1 bg-emerald-50/90 border border-emerald-300 rounded-xl text-xs font-black text-emerald-950 focus:bg-white focus:border-emerald-600 outline-none text-center shadow-2xs transition-all"
+                            value={p.precioVenta}
+                            onChange={async (e) => {
+                              const val = Math.max(0, parseFloat(e.target.value) || 0);
+                              await saveProduct({ ...p, precioVenta: val });
+                            }}
+                            title="Haz clic para tipear el precio de venta directamente"
+                          />
                         </div>
-                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0">
+                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0" title="Margen de ganancia calculado">
                           +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
                         </span>
                       </div>
@@ -1431,12 +1434,14 @@ export default function Inventory({ inventoryData, accountingData }) {
                             type="button"
                             onClick={(e) => handleQuickAdjustStock(p, -1, e)}
                             className="w-6 h-6 rounded-xl bg-white hover:bg-surface-container-high text-on-surface font-extrabold text-xs flex items-center justify-center cursor-pointer shadow-2xs"
+                            title="Restar 1 unidad"
                           >
                             -
                           </button>
                           <span 
                             onClick={(e) => handleStartEditStock(p, e)}
                             className="font-black px-2.5 text-xs cursor-pointer hover:underline text-on-surface"
+                            title="Editar cantidad de stock directamente"
                           >
                             {formatQuantity(p.stockActual)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta === 'kg' ? 'kg' : 'unidades'}
                           </span>
@@ -1444,20 +1449,21 @@ export default function Inventory({ inventoryData, accountingData }) {
                             type="button"
                             onClick={(e) => handleQuickAdjustStock(p, 1, e)}
                             className="w-6 h-6 rounded-xl bg-white hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer shadow-2xs"
+                            title="Sumar 1 unidad"
                           >
                             +
                           </button>
                         </div>
                       </div>
 
-                      {/* Col 5: Acciones (Col-span 3 - 4 botones con iconos diferenciables) */}
+                      {/* Col 5: Acciones (Col-span 3 - TOOLTIPS Y BOTONES CLAROS) */}
                       <div className="col-span-3 flex justify-end items-center gap-1.5 shrink-0">
                         {/* 1. Añadir Compra */}
                         <button
                           type="button"
                           onClick={(e) => handleOpenAddStockForProduct(p, e)}
                           className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                          title="Añadir Compra"
+                          title="🛒 Cargar Compra / Registrar Entrada de Stock"
                         >
                           <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
                         </button>
@@ -1473,7 +1479,7 @@ export default function Inventory({ inventoryData, accountingData }) {
                             setView('merma');
                           }}
                           className="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                          title="Mermar Producto"
+                          title="📦 Registrar Merma / Descarte por Daño o Vencimiento"
                         >
                           <span className="material-symbols-outlined text-lg">remove_shopping_cart</span>
                         </button>
@@ -1482,7 +1488,7 @@ export default function Inventory({ inventoryData, accountingData }) {
                         <button
                           onClick={() => handleEdit(p)}
                           className="p-2 text-secondary hover:text-primary hover:bg-surface-container-low rounded-xl transition-colors cursor-pointer"
-                          title="Editar Producto"
+                          title="✏️ Editar Datos Completos del Producto"
                         >
                           <span className="material-symbols-outlined text-lg">edit</span>
                         </button>
@@ -1493,7 +1499,7 @@ export default function Inventory({ inventoryData, accountingData }) {
                             if (window.confirm(`¿Estás seguro de eliminar "${p.nombre}"?`)) deleteProduct(p.id);
                           }}
                           className="p-2 text-secondary hover:text-error hover:bg-error-container/20 rounded-xl transition-colors cursor-pointer"
-                          title="Eliminar Producto"
+                          title="🗑️ Eliminar Producto Definitivamente"
                         >
                           <span className="material-symbols-outlined text-lg">delete</span>
                         </button>
@@ -1588,41 +1594,52 @@ export default function Inventory({ inventoryData, accountingData }) {
         {/* RIGHT SIDEBAR: LOW STOCK ALERTS & RECENTLY MODIFIED PRICES (SPANISH) */}
         <div className="lg:col-span-3 flex flex-col gap-4">
           
-          {/* Card 1: Alertas de Stock Bajo */}
-          <div className="bg-white rounded-3xl p-5 border border-surface-container-low shadow-xs flex flex-col gap-3">
-            <h3 className="font-black text-on-surface text-sm">
-              Alertas de Stock Bajo
+          {/* Card 1: Alertas de Stock Bajo (CLEAN BADGES) */}
+          <div className="bg-white rounded-2xl p-4 border border-surface-container-low shadow-2xs flex flex-col gap-3">
+            <h3 className="font-black text-on-surface text-sm flex items-center justify-between">
+              <span>Alertas de Stock Bajo</span>
+              <span className="w-2 h-2 rounded-full bg-error animate-pulse"></span>
             </h3>
 
-            <div className="space-y-2.5 text-xs">
+            <div className="space-y-2 text-xs">
               {products.filter(p => (p.stockActual || 0) <= 3).length === 0 ? (
                 <p className="text-secondary text-[11px] italic">No hay alertas de stock bajo actualmente.</p>
               ) : (
                 products.filter(p => (p.stockActual || 0) <= 3).slice(0, 5).map((p, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-on-surface py-0.5">
-                    <span className="font-bold truncate max-w-[150px]">{p.nombre}</span>
-                    <span className="text-[11px] text-secondary font-bold">
-                      {p.stockActual === 0 ? '(Sin stock)' : `(Quedan ${p.stockActual})`}
-                    </span>
+                  <div key={idx} className="flex justify-between items-center text-on-surface py-1 border-b border-surface-container-low last:border-0">
+                    <span className="font-bold truncate max-w-[130px]">{p.nombre}</span>
+                    {p.stockActual === 0 ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black text-error bg-error-container/30 px-2 py-0.5 rounded-full border border-error/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>Sin Stock
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full border border-amber-300">
+                        Quedan {p.stockActual}
+                      </span>
+                    )}
                   </div>
                 ))
               )}
             </div>
           </div>
 
-          {/* Card 2: Precios Modificados Recientemente */}
-          <div className="bg-white rounded-3xl p-5 border border-surface-container-low shadow-xs flex flex-col gap-3">
+          {/* Card 2: Precios Modificados Recientemente (RELATIVE TIME SUBTEXT) */}
+          <div className="bg-white rounded-2xl p-4 border border-surface-container-low shadow-2xs flex flex-col gap-3">
             <h3 className="font-black text-on-surface text-sm">
               Precios Modificados Recientemente
             </h3>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-2.5 text-xs">
               {sortedProducts.slice(0, 4).map((p, idx) => (
                 <div key={idx} className="flex flex-col gap-0.5 border-b border-surface-container-low pb-2 last:border-0 last:pb-0">
-                  <span className="font-bold text-on-surface truncate">{p.nombre}</span>
-                  <span className="text-[11px] text-secondary font-medium">
-                    1 {p.tipoVenta === 'grs' ? '100g' : 'unidad'} - ${formatPrice(p.precioVenta)}
-                  </span>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-on-surface truncate max-w-[140px]">{p.nombre}</span>
+                    <span className="font-black text-emerald-800 text-xs">${formatPrice(p.precioVenta)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] text-secondary font-medium">
+                    <span>1 {p.tipoVenta === 'grs' ? '100g' : 'unidad'}</span>
+                    <span className="text-secondary/70 italic">Hoy • hace 2h</span>
+                  </div>
                 </div>
               ))}
             </div>
