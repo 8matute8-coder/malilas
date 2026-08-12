@@ -983,19 +983,22 @@ export default function Inventory({ inventoryData, accountingData }) {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in w-full">
+      {/* Title */}
+      <h2 className="text-2xl font-extrabold text-on-surface tracking-tight">Resumen de Inventario</h2>
+
       {/* Financial Valuation Summary Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-surface-container-low border-t-4 border-t-blue-600 flex flex-col justify-between">
+        <div className="bg-white rounded-3xl p-5 shadow-xs border border-surface-container-low flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-secondary uppercase tracking-wider block mb-1">Inversión en Stock (Costo)</span>
+            <span className="text-xs font-bold text-secondary uppercase tracking-wider block mb-1">INVERSIÓN EN STOCK (COSTO)</span>
             <h3 className="text-2xl sm:text-3xl font-black text-blue-700">${formatPrice(inventoryValuation.totalCosto)}</h3>
           </div>
           <span className="text-[11px] text-secondary font-medium mt-2">Costo total acumulado de compra</span>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 shadow-sm border border-surface-container-low border-t-4 border-t-emerald-600 flex flex-col justify-between">
+        <div className="bg-white rounded-3xl p-5 shadow-xs border border-surface-container-low flex flex-col justify-between">
           <div>
-            <span className="text-xs font-bold text-secondary uppercase tracking-wider block mb-1">Ganancia Esperada Total</span>
+            <span className="text-xs font-bold text-secondary uppercase tracking-wider block mb-1">GANANCIA ESPERADA TOTAL</span>
             <h3 className="text-2xl sm:text-3xl font-black text-emerald-700">${formatPrice(inventoryValuation.totalGanancia)}</h3>
           </div>
           <span className="text-[11px] text-emerald-800 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 w-fit mt-2">
@@ -1005,24 +1008,42 @@ export default function Inventory({ inventoryData, accountingData }) {
 
         <div 
           onClick={() => setView('mermasHistory')}
-          className="bg-white rounded-3xl p-5 shadow-sm border border-surface-container-low border-t-4 border-t-error flex flex-col justify-between cursor-pointer hover:bg-error-container/10 transition-colors"
+          className="bg-white rounded-3xl p-5 shadow-xs border border-surface-container-low flex flex-col justify-between cursor-pointer hover:bg-error-container/10 transition-colors"
           title="Haz clic para ver el historial detallado de mermas"
         >
           <div>
             <div className="flex justify-between items-center mb-1">
-              <span className="text-xs font-bold text-error uppercase tracking-wider">Pérdida por Mermas</span>
+              <span className="text-xs font-bold text-error uppercase tracking-wider">PÉRDIDA POR MERMAS</span>
               <span className="material-symbols-outlined text-error text-base">receipt_long</span>
             </div>
             <h3 className="text-2xl sm:text-3xl font-black text-error">${formatPrice(totalPerdidaMerma)}</h3>
           </div>
-          <span className="text-[11px] text-error font-extrabold mt-2 underline">
-            {mermas.length} registros mermados (Ver detalle)
-          </span>
+
+          <div className="mt-2 text-[11px]">
+            {mermas.length > 0 ? (
+              <div className="space-y-0.5 text-secondary">
+                {mermas.slice(0, 2).map((m, idx) => {
+                  const p = products.find(prod => prod.id === m.productId);
+                  const pName = p ? p.nombre : 'Producto';
+                  const unit = p ? (p.tipoVenta === 'grs' ? '100g' : p.tipoVenta) : 'unidad';
+                  const costoUnit = p ? (p.costoPromedio || 0) : 0;
+                  return (
+                    <div key={idx} className="flex justify-between items-center text-[10px]">
+                      <span className="truncate max-w-[170px]">{pName} - {m.cantidad} {unit} - ${formatPrice(m.cantidad * (p ? p.precioVenta : 0))}</span>
+                      <span className="font-bold">${formatPrice(m.cantidad * costoUnit)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <span className="text-secondary font-medium">0 registros mermados (Ver detalle)</span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* TOP ACTION & SEARCH TOOLBAR */}
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-4 rounded-3xl border border-surface-container-low shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-4 rounded-3xl border border-surface-container-low shadow-xs">
         <div className="relative flex-grow max-w-md">
           <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary">
             search
@@ -1056,274 +1077,163 @@ export default function Inventory({ inventoryData, accountingData }) {
         </div>
       </div>
 
-      {/* PRODUCST CONTAINER (Structured Cards for Mobile, Grid for Desktop) */}
-      <div className="flex flex-col gap-3">
-        {sortedProducts.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center text-secondary border border-surface-container-low shadow-sm">
-            <span className="material-symbols-outlined text-4xl text-secondary mb-2 block">search_off</span>
-            <p className="font-bold text-sm text-on-surface">No se encontraron productos en el inventario.</p>
+      {/* MAIN CONTENT DASHBOARD GRID: TABLE (LEFT 9 COLS) + SIDEBAR ALERTS (RIGHT 3 COLS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
+
+        {/* LEFT SECTION: TABLE & PRODUCTS LIST */}
+        <div className="lg:col-span-9 flex flex-col gap-3">
+          
+          {/* DESKTOP TABLE COLUMNS HEADER BAR (SPANISH) */}
+          <div className="hidden md:grid grid-cols-12 gap-2 bg-surface-container-low border border-surface-container-highest rounded-2xl px-5 py-3 text-xs font-black text-on-surface uppercase tracking-wider text-center items-center shadow-2xs">
+            <div className="col-span-4 text-left pl-2">Producto</div>
+            <div className="col-span-2">[Costo Unitario]</div>
+            <div className="col-span-3">[Precio de Venta]</div>
+            <div className="col-span-1">[Margen %]</div>
+            <div className="col-span-2">[Stock Actual]</div>
+            <div className="col-span-2 text-right pr-2">Acciones</div>
           </div>
-        ) : (
-          sortedProducts.map((p) => {
-            const isLowStock = p.stockActual <= p.stockMinimo;
 
-            const prodPurchases = (accountingData?.purchases || []).filter(purch =>
-              purch.productId === p.id ||
-              (purch.productNombre && purch.productNombre.toLowerCase() === p.nombre.toLowerCase())
-            );
-            const lastPurchase = prodPurchases[0];
+          {/* PRODUCTS LIST */}
+          {sortedProducts.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center text-secondary border border-surface-container-low shadow-sm">
+              <span className="material-symbols-outlined text-4xl text-secondary mb-2 block">search_off</span>
+              <p className="font-bold text-sm text-on-surface">No se encontraron productos en el inventario.</p>
+            </div>
+          ) : (
+            sortedProducts.map((p) => {
+              const isLowStock = (p.stockActual || 0) <= (p.stockMinimo || 3);
 
-            return (
-              <React.Fragment key={p.id}>
-                {/* 1. MOBILE STRUCTURED CARD VIEW (Visible only on Mobile screens < 768px) */}
-                <div className="bg-white p-4 rounded-3xl border border-surface-container-low shadow-xs flex flex-col gap-3.5 md:hidden animate-fade-in">
-                  {/* Card Header: Avatar + Title + Unit Badge + Quick Action Icons */}
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex items-center gap-3">
-                      <img 
-                        src={getProductImage(p)} 
-                        alt={p.nombre} 
-                        className="w-12 h-12 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
-                      />
-                      <div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="font-black text-on-surface text-base leading-tight">{p.nombre}</h3>
-                          {p.esOferta && (
-                            <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-[10px] uppercase shadow-2xs">
-                              🔥 Promo {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta} x ${formatPrice(p.precioOferta)}
+              const prodPurchases = (accountingData?.purchases || []).filter(purch =>
+                purch.productId === p.id ||
+                (purch.productNombre && purch.productNombre.toLowerCase() === p.nombre.toLowerCase())
+              );
+              const lastPurchase = prodPurchases[0];
+
+              return (
+                <React.Fragment key={p.id}>
+                  {/* 1. MOBILE STRUCTURED CARD VIEW (Visible only on Mobile screens < 768px) */}
+                  <div className="bg-white p-4 rounded-3xl border border-surface-container-low shadow-xs flex flex-col gap-3.5 md:hidden animate-fade-in">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={getProductImage(p)} 
+                          alt={p.nombre} 
+                          className="w-12 h-12 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
+                        />
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="font-black text-on-surface text-base leading-tight">{p.nombre}</h3>
+                            {p.esOferta && (
+                              <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-[10px] uppercase shadow-2xs">
+                                🔥 Promo {p.cantidadOferta} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta} x ${formatPrice(p.precioOferta)}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-secondary font-bold block mt-0.5">
+                            Venta: Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleEdit(p)}
+                          className="p-1.5 text-secondary hover:text-primary rounded-lg transition-colors"
+                          title="Editar producto"
+                        >
+                          <span className="material-symbols-outlined text-base">edit</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`¿Estás seguro de eliminar "${p.nombre}"?`)) deleteProduct(p.id);
+                          }}
+                          className="p-1.5 text-secondary hover:text-error rounded-lg transition-colors"
+                          title="Eliminar producto"
+                        >
+                          <span className="material-symbols-outlined text-base">delete</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 bg-surface-container-low p-3 rounded-2xl border border-surface-container-highest text-xs">
+                      <div className="flex flex-col gap-2 border-r border-surface-container-highest/70 pr-2">
+                        <div className="flex justify-between items-center font-bold">
+                          <span className="text-secondary text-[11px]">Costo:</span>
+                          <span className="font-black text-on-surface text-xs">${formatPrice(p.costoPromedio)}</span>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-secondary font-bold text-[10px]">Precio Venta:</span>
+                            <span className="text-[10px] font-black text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded-md border border-emerald-200">
+                              +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
                             </span>
-                          )}
+                          </div>
+                          <div className="inline-flex items-center justify-between bg-white border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
+                              className="w-6 h-6 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer"
+                            >
+                              -
+                            </button>
+                            <span 
+                              onClick={(e) => handleStartEditPrice(p, e)}
+                              className="font-black text-primary text-xs px-1 hover:underline cursor-pointer"
+                            >
+                              ${formatPrice(p.precioVenta)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
+                              className="w-6 h-6 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
-                        <span className="text-xs text-secondary font-bold block mt-0.5">
-                          Venta: Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}
-                        </span>
-                        {lastPurchase && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setExpandedPurchasesProductId(expandedPurchasesProductId === p.id ? null : p.id); }}
-                            className="text-[10px] font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200/80 inline-flex items-center gap-1 mt-1 cursor-pointer"
-                          >
-                            <span>Última Compra: 🏢 {lastPurchase.proveedor} (${formatPrice(lastPurchase.costoUnitario)})</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Quick Edit & Delete Icons */}
-                    <div className="flex items-center gap-0.5 shrink-0 bg-surface-container-low p-1 rounded-xl border border-surface-container-highest">
-                      <button
-                        onClick={() => handleEdit(p)}
-                        className="p-1.5 text-secondary hover:text-primary rounded-lg transition-colors"
-                        title="Editar producto"
-                      >
-                        <span className="material-symbols-outlined text-base">edit</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`¿Estás seguro de eliminar "${p.nombre}"?`)) deleteProduct(p.id);
-                        }}
-                        className="p-1.5 text-secondary hover:text-error rounded-lg transition-colors"
-                        title="Eliminar producto"
-                      >
-                        <span className="material-symbols-outlined text-base">delete</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Metrics Matrix Grid: Costo, Precio Venta, Stock */}
-                  <div className="grid grid-cols-2 gap-2 bg-surface-container-low p-3 rounded-2xl border border-surface-container-highest text-xs">
-                    {/* Left Column: Costo & Precio Venta */}
-                    <div className="flex flex-col gap-2 border-r border-surface-container-highest/70 pr-2">
-                      <div className="flex justify-between items-center font-bold">
-                        <span className="text-secondary text-[11px]">Costo Promedio:</span>
-                        <span className="font-black text-on-surface text-xs">${formatPrice(p.costoPromedio)}</span>
                       </div>
 
-                      <div className="flex flex-col gap-1">
-                        <div className="flex justify-between items-center">
-                          <span className="text-secondary font-bold text-[10px]">Precio Venta:</span>
-                          <span className="text-[10px] font-black text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded-md border border-emerald-200">
-                            +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
-                          </span>
+                      <div className="flex flex-col justify-between pl-1">
+                        <div className="flex justify-between items-center font-bold">
+                          <span className="text-secondary text-[11px]">Stock Actual:</span>
                         </div>
-                        <div className="inline-flex items-center justify-between bg-white border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
-                            className="w-6 h-6 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer"
-                          >
-                            -
-                          </button>
-                          <span 
-                            onClick={(e) => handleStartEditPrice(p, e)}
-                            className="font-black text-primary text-xs px-1 hover:underline cursor-pointer"
-                          >
-                            ${formatPrice(p.precioVenta)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
-                            className="w-6 h-6 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer"
-                          >
-                            +
-                          </button>
+
+                        <div className="flex flex-col gap-1">
+                          <div className="inline-flex items-center justify-between bg-white border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickAdjustStock(p, -1, e)}
+                              className="w-6 h-6 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer"
+                            >
+                              -
+                            </button>
+                            <span 
+                              onClick={(e) => handleStartEditStock(p, e)}
+                              className="font-black text-xs px-1 hover:underline cursor-pointer text-on-surface"
+                            >
+                              {formatQuantity(p.stockActual)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickAdjustStock(p, 1, e)}
+                              className="w-6 h-6 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Right Column: Stock */}
-                    <div className="flex flex-col justify-between pl-1">
-                      <div className="flex justify-between items-center font-bold">
-                        <span className="text-secondary text-[11px]">Stock Actual:</span>
-                      </div>
-
-                      <div className="flex flex-col gap-1">
-                        <div className="inline-flex items-center justify-between bg-white border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustStock(p, -1, e)}
-                            className="w-6 h-6 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer"
-                          >
-                            -
-                          </button>
-                          <span 
-                            onClick={(e) => handleStartEditStock(p, e)}
-                            className="font-black text-xs px-1 hover:underline cursor-pointer text-on-surface"
-                          >
-                            {formatQuantity(p.stockActual)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => handleQuickAdjustStock(p, 1, e)}
-                            className="w-6 h-6 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Equal 50/50 Primary Buttons Bar for Compra & Merma */}
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={(e) => handleOpenAddStockForProduct(p, e)}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-base">add_shopping_cart</span>
-                      <span>+ Compra</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        if (e) e.stopPropagation();
-                        scrollPosRef.current = window.scrollY;
-                        setSelectedProduct(p);
-                        setMermaForm({ quantity: '', motive: '' });
-                        setView('merma');
-                      }}
-                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-base">remove_shopping_cart</span>
-                      <span>Merma</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. DESKTOP TABLE VIEW (Visible on Desktop >= 768px) */}
-                <div className="hidden md:block bg-white rounded-3xl border border-surface-container-low overflow-hidden shadow-2xs">
-                  <div className={`grid grid-cols-12 gap-3 px-6 py-3.5 items-center ${
-                    p.esOferta ? 'bg-amber-50/60 border-l-4 border-l-amber-500' : 'hover:bg-surface-container-low/60'
-                  }`}>
-                    {/* Product Name & Img (Col 4) */}
-                    <div className="col-span-4 flex items-center gap-3">
-                      <img 
-                        src={getProductImage(p)} 
-                        alt={p.nombre} 
-                        className="w-10 h-10 rounded-xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
-                      />
-                      <div className="min-w-0 flex-grow">
-                        <h3 className="font-extrabold text-on-surface text-sm leading-snug truncate">{p.nombre}</h3>
-                        <span className="text-[11px] text-secondary">Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
-                        {lastPurchase && (
-                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 block mt-0.5 w-fit truncate max-w-full">
-                            Última Compra: 🏢 {lastPurchase.proveedor} (${formatPrice(lastPurchase.costoUnitario)})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Cost (Col 1) */}
-                    <div className="col-span-1 text-center font-bold text-xs text-secondary">
-                      ${formatPrice(p.costoPromedio)}
-                    </div>
-
-                    {/* Precio Venta (Col 3) */}
-                    <div className="col-span-3 flex items-center gap-2">
-                      <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
-                        <button
-                          type="button"
-                          onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
-                          className="w-6 h-6 rounded-lg bg-white text-on-surface font-extrabold text-xs flex items-center justify-center cursor-pointer"
-                        >
-                          -
-                        </button>
-                        <span 
-                          onClick={(e) => handleStartEditPrice(p, e)}
-                          className="font-black text-primary px-2 text-xs cursor-pointer hover:underline"
-                        >
-                          ${formatPrice(p.precioVenta)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
-                          className="w-6 h-6 rounded-lg bg-white text-on-surface font-extrabold text-xs flex items-center justify-center cursor-pointer"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200 shrink-0">
-                        +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
-                      </span>
-                    </div>
-
-                    {/* Stock (Col 2) */}
-                    <div className="col-span-2 flex items-center justify-center">
-                      <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-xl p-0.5 shadow-2xs">
-                        <button
-                          type="button"
-                          onClick={(e) => handleQuickAdjustStock(p, -1, e)}
-                          className="w-6 h-6 rounded-lg bg-white text-on-surface font-extrabold text-xs flex items-center justify-center cursor-pointer"
-                        >
-                          -
-                        </button>
-                        <span 
-                          onClick={(e) => handleStartEditStock(p, e)}
-                          className="font-black px-2 text-xs cursor-pointer hover:underline text-on-surface"
-                        >
-                          {formatQuantity(p.stockActual)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => handleQuickAdjustStock(p, 1, e)}
-                          className="w-6 h-6 rounded-lg bg-white text-on-surface font-extrabold text-xs flex items-center justify-center cursor-pointer"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Actions Icon Group (Col 2) */}
-                    <div className="col-span-2 flex justify-end items-center gap-1">
+                    <div className="flex items-center gap-2 pt-0.5">
                       <button
                         type="button"
                         onClick={(e) => handleOpenAddStockForProduct(p, e)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                        title="Cargar Compra / Añadir Stock"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+                        <span className="material-symbols-outlined text-base">add_shopping_cart</span>
+                        <span>+ Compra</span>
                       </button>
 
                       <button
@@ -1335,84 +1245,193 @@ export default function Inventory({ inventoryData, accountingData }) {
                           setMermaForm({ quantity: '', motive: '' });
                           setView('merma');
                         }}
-                        className="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                        title="Registrar Merma"
+                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                       >
-                        <span className="material-symbols-outlined text-lg">remove_shopping_cart</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleEdit(p)}
-                        className="p-2 text-secondary hover:text-primary hover:bg-surface-container-low rounded-xl transition-colors cursor-pointer"
-                        title="Editar producto"
-                      >
-                        <span className="material-symbols-outlined text-lg">edit</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`¿Estás seguro de eliminar "${p.nombre}"?`)) deleteProduct(p.id);
-                        }}
-                        className="p-2 text-secondary hover:text-error hover:bg-error-container/20 rounded-xl transition-colors cursor-pointer"
-                        title="Eliminar producto"
-                      >
-                        <span className="material-symbols-outlined text-lg">delete</span>
+                        <span className="material-symbols-outlined text-base">remove_shopping_cart</span>
+                        <span>Merma</span>
                       </button>
                     </div>
                   </div>
-                </div>
 
-                {/* EXPANDABLE INLINE PURCHASE HISTORY DRAWER */}
-                {expandedPurchasesProductId === p.id && (
-                  <div className="bg-surface-container-low/90 px-6 py-4 rounded-2xl border border-emerald-200/80 animate-fade-in my-1">
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="font-extrabold text-xs text-emerald-950 flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-emerald-700 text-base">history</span>
-                        <span>Historial de Compras de "{p.nombre}"</span>
-                      </h4>
-                      <button
-                        onClick={() => setExpandedPurchasesProductId(null)}
-                        className="text-xs text-secondary hover:text-on-surface font-bold"
-                      >
-                        Cerrar ✕
-                      </button>
-                    </div>
-
-                    {prodPurchases.length === 0 ? (
-                      <p className="text-xs text-secondary italic">No hay compras registradas para este producto.</p>
-                    ) : (
-                      <div className="bg-white rounded-2xl border border-surface-container-highest divide-y divide-surface-container-highest overflow-hidden">
-                        <div className="grid grid-cols-12 gap-2 p-2.5 bg-surface-container-low font-bold text-[11px] text-secondary uppercase">
-                          <div className="col-span-3">Fecha y Hora</div>
-                          <div className="col-span-4">Proveedor</div>
-                          <div className="col-span-2 text-right">Cantidad</div>
-                          <div className="col-span-3 text-right">Total Pagado ($)</div>
+                  {/* 2. DESKTOP TABLE ROW VIEW (Visible on Desktop >= 768px) */}
+                  <div className="hidden md:block bg-white rounded-2xl border border-surface-container-low overflow-hidden shadow-2xs hover:bg-surface-container-low/40 transition-colors">
+                    <div className={`grid grid-cols-12 gap-2 px-5 py-3.5 items-center ${
+                      p.esOferta ? 'bg-amber-50/60 border-l-4 border-l-amber-500' : ''
+                    }`}>
+                      {/* Product Name & Img (Col 4) */}
+                      <div className="col-span-4 flex items-center gap-3">
+                        <img 
+                          src={getProductImage(p)} 
+                          alt={p.nombre} 
+                          className="w-11 h-11 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
+                        />
+                        <div className="min-w-0 flex-grow">
+                          <h3 className="font-extrabold text-on-surface text-sm leading-snug truncate">{p.nombre}</h3>
+                          <span className="text-[11px] text-secondary font-medium">Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
                         </div>
-
-                        {prodPurchases.map((purch) => (
-                          <div key={purch.id} className="grid grid-cols-12 gap-2 p-2.5 text-xs font-semibold hover:bg-surface-container-low/50">
-                            <div className="col-span-3 font-bold text-on-surface">
-                              {new Date(purch.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                            <div className="col-span-4 font-bold text-emerald-900">
-                              🏢 {purch.proveedor || 'Proveedor General'}
-                            </div>
-                            <div className="col-span-2 text-right font-bold text-on-surface">
-                              {purch.cantidad} {p.tipoVenta}
-                            </div>
-                            <div className="col-span-3 text-right font-black text-emerald-700">
-                              ${formatPrice(purch.precioTotal)} (${formatPrice(purch.costoUnitario)} c/u)
-                            </div>
-                          </div>
-                        ))}
                       </div>
-                    )}
+
+                      {/* Cost (Col 2) */}
+                      <div className="col-span-2 text-center font-extrabold text-xs text-on-surface">
+                        ${formatPrice(p.costoPromedio)}
+                      </div>
+
+                      {/* Precio Venta (Col 3) */}
+                      <div className="col-span-3 flex items-center gap-2 justify-center">
+                        <div className="inline-flex items-center bg-emerald-50/90 border border-emerald-200/90 rounded-2xl p-1 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickAdjustPrice(p, -100, e)}
+                            className="w-6 h-6 rounded-xl bg-white hover:bg-emerald-100 text-emerald-900 font-extrabold text-xs flex items-center justify-center cursor-pointer shadow-2xs"
+                          >
+                            -
+                          </button>
+                          <span 
+                            onClick={(e) => handleStartEditPrice(p, e)}
+                            className="font-black text-emerald-900 px-2 text-xs cursor-pointer hover:underline"
+                          >
+                            +${formatPrice(p.precioVenta)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickAdjustPrice(p, 100, e)}
+                            className="w-6 h-6 rounded-xl bg-white hover:bg-emerald-100 text-emerald-900 font-extrabold text-xs flex items-center justify-center cursor-pointer shadow-2xs"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Margen % (Col 1) */}
+                      <div className="col-span-1 text-center">
+                        <span className="text-[10px] font-black text-emerald-800 bg-emerald-100/70 px-2 py-1 rounded-md border border-emerald-200 inline-block">
+                          +{calcGananciaPorcentaje(p.precioVenta, p.costoPromedio)}%
+                        </span>
+                      </div>
+
+                      {/* Stock (Col 2) */}
+                      <div className="col-span-2 flex items-center justify-center">
+                        <div className="inline-flex items-center bg-surface-container-low border border-surface-container-highest rounded-2xl p-1 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickAdjustStock(p, -1, e)}
+                            className="w-6 h-6 rounded-xl bg-white hover:bg-surface-container-high text-on-surface font-extrabold text-xs flex items-center justify-center cursor-pointer shadow-2xs"
+                          >
+                            -
+                          </button>
+                          <span 
+                            onClick={(e) => handleStartEditStock(p, e)}
+                            className="font-black px-2 text-xs cursor-pointer hover:underline text-on-surface"
+                          >
+                            {formatQuantity(p.stockActual)} {p.tipoVenta === 'grs' ? 'g' : p.tipoVenta === 'kg' ? 'kg' : 'unidades'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickAdjustStock(p, 1, e)}
+                            className="w-6 h-6 rounded-xl bg-white hover:bg-surface-container-high text-on-surface font-black text-xs flex items-center justify-center cursor-pointer shadow-2xs"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Actions Icon Group (Col 2) */}
+                      <div className="col-span-2 flex justify-end items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenAddStockForProduct(p, e)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                          title="Cargar Compra / Añadir Stock"
+                        >
+                          <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            if (e) e.stopPropagation();
+                            scrollPosRef.current = window.scrollY;
+                            setSelectedProduct(p);
+                            setMermaForm({ quantity: '', motive: '' });
+                            setView('merma');
+                          }}
+                          className="bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl font-bold shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                          title="Registrar Merma"
+                        >
+                          <span className="material-symbols-outlined text-lg">remove_shopping_cart</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleEdit(p)}
+                          className="p-2 text-secondary hover:text-primary hover:bg-surface-container-low rounded-xl transition-colors cursor-pointer"
+                          title="Editar producto"
+                        >
+                          <span className="material-symbols-outlined text-lg">edit</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`¿Estás seguro de eliminar "${p.nombre}"?`)) deleteProduct(p.id);
+                          }}
+                          className="p-2 text-secondary hover:text-error hover:bg-error-container/20 rounded-xl transition-colors cursor-pointer"
+                          title="Eliminar producto"
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </React.Fragment>
-            );
-          })
-        )}
+                </React.Fragment>
+              );
+            })
+          )}
+        </div>
+
+        {/* RIGHT SIDEBAR: LOW STOCK ALERTS & RECENTLY MODIFIED PRICES (SPANISH) */}
+        <div className="lg:col-span-3 flex flex-col gap-4">
+          
+          {/* Card 1: Alertas de Stock Bajo */}
+          <div className="bg-white rounded-3xl p-5 border border-surface-container-low shadow-xs flex flex-col gap-3">
+            <h3 className="font-black text-on-surface text-sm">
+              Alertas de Stock Bajo
+            </h3>
+
+            <div className="space-y-2.5 text-xs">
+              {products.filter(p => (p.stockActual || 0) <= 3).length === 0 ? (
+                <p className="text-secondary text-[11px] italic">No hay alertas de stock bajo actualmente.</p>
+              ) : (
+                products.filter(p => (p.stockActual || 0) <= 3).slice(0, 5).map((p, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-on-surface py-0.5">
+                    <span className="font-bold truncate max-w-[150px]">{p.nombre}</span>
+                    <span className="text-[11px] text-secondary font-bold">
+                      {p.stockActual === 0 ? '(Sin stock)' : `(Quedan ${p.stockActual})`}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Precios Modificados Recientemente */}
+          <div className="bg-white rounded-3xl p-5 border border-surface-container-low shadow-xs flex flex-col gap-3">
+            <h3 className="font-black text-on-surface text-sm">
+              Precios Modificados Recientemente
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              {sortedProducts.slice(0, 4).map((p, idx) => (
+                <div key={idx} className="flex flex-col gap-0.5 border-b border-surface-container-low pb-2 last:border-0 last:pb-0">
+                  <span className="font-bold text-on-surface truncate">{p.nombre}</span>
+                  <span className="text-[11px] text-secondary font-medium">
+                    1 {p.tipoVenta === 'grs' ? '100g' : 'unidad'} - ${formatPrice(p.precioVenta)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
   );
