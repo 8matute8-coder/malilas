@@ -1461,10 +1461,10 @@ export default function Inventory({ inventoryData, accountingData }) {
 
       </div>
 
-      {/* MODAL CAMBIAR IMAGEN DE PRODUCTO */}
+      {/* MODAL CAMBIAR IMAGEN DE PRODUCTO (POSICIONADO AL COMIENZO / ARRIBA DE LA PANTALLA) */}
       {modalChangeImageProduct && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-surface-container-low flex flex-col gap-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-start justify-center pt-6 sm:pt-14 p-4 z-50 overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-surface-container-low flex flex-col gap-4 my-auto sm:my-0">
             {/* Header */}
             <div className="flex justify-between items-center border-b border-surface-container-low pb-3">
               <div>
