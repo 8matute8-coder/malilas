@@ -208,7 +208,7 @@ export default function Tienda() {
           <div className="hidden md:flex items-center gap-3 text-secondary">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Atención: Lunes a Sábados (9:00 a 14:00 hs | 17:00 a 21:00 hs)</span>
+              <span>Atención: Lun a Sáb (9-14hs | 17-21hs) • Dom (9-14hs)</span>
             </span>
           </div>
         </div>
@@ -276,7 +276,7 @@ export default function Tienda() {
                 </div>
 
                 <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
-                  Del campo a tu mesa en <span className="text-emerald-300 underline decoration-amber-400 decoration-wavy decoration-2">San Miguel de Tucumán</span>
+                  <span className="text-emerald-300 underline decoration-amber-400 decoration-wavy decoration-2">Productos frescos siempre</span> en San Miguel de Tucumán
                 </h2>
 
                 <p className="text-xs sm:text-sm font-medium text-emerald-100/90 leading-relaxed">
@@ -286,7 +286,7 @@ export default function Tienda() {
                 {/* Opening Hours Info Badge */}
                 <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 px-3.5 py-2 rounded-2xl text-xs font-extrabold text-white w-fit mx-auto md:mx-0 backdrop-blur-xs mt-1">
                   <span className="material-symbols-outlined text-amber-300 text-base">schedule</span>
-                  <span>Lunes a Sábados: 9:00 a 14:00 hs | 17:00 a 21:00 hs</span>
+                  <span>Lun a Sáb: 9:00 a 14:00 | 17:00 a 21:00 hs • Dom: 9:00 a 14:00 hs</span>
                 </div>
               </div>
 
