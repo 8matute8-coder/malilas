@@ -35,6 +35,17 @@ export default function Inventory({ inventoryData, accountingData }) {
   const [editingStockId, setEditingStockId] = useState(null);
   const [inlineStockInput, setInlineStockInput] = useState('');
 
+  // Quick Change Product Image Modal State
+  const [modalChangeImageProduct, setModalChangeImageProduct] = useState(null);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+
+  const handleOpenChangeImageModal = (product, e) => {
+    if (e) e.stopPropagation();
+    scrollPosRef.current = window.scrollY;
+    setModalChangeImageProduct(product);
+    setImageUrlInput(product.imagen || '');
+  };
+
   // Stock form state (Add Stock / Purchase)
   const [stockForm, setStockForm] = useState({ quantity: '', totalPrice: '', cost: '', proveedor: '' });
   // Merma form state
@@ -1113,11 +1124,20 @@ export default function Inventory({ inventoryData, accountingData }) {
                   <div className="bg-white p-4 rounded-3xl border border-surface-container-low shadow-xs flex flex-col gap-3.5 md:hidden animate-fade-in">
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex items-center gap-3">
-                        <img 
-                          src={getProductImage(p)} 
-                          alt={p.nombre} 
-                          className="w-12 h-12 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
-                        />
+                        <div 
+                          onClick={(e) => handleOpenChangeImageModal(p, e)}
+                          className="relative group cursor-pointer shrink-0"
+                          title="Toca para cambiar la imagen o el link de este producto"
+                        >
+                          <img 
+                            src={getProductImage(p)} 
+                            alt={p.nombre} 
+                            className="w-12 h-12 rounded-2xl object-cover border border-surface-container-highest shadow-2xs group-hover:scale-105 group-hover:ring-2 group-hover:ring-emerald-500 transition-all" 
+                          />
+                          <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <span className="material-symbols-outlined text-white text-xs">edit</span>
+                          </div>
+                        </div>
                         <div>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <h3 className="font-black text-on-surface text-base leading-tight">{p.nombre}</h3>
@@ -1258,11 +1278,20 @@ export default function Inventory({ inventoryData, accountingData }) {
                     }`}>
                       {/* Col 1: Producto (Col-span 3) */}
                       <div className="col-span-3 flex items-center gap-3">
-                        <img 
-                          src={getProductImage(p)} 
-                          alt={p.nombre} 
-                          className="w-11 h-11 rounded-2xl object-cover border border-surface-container-highest shrink-0 shadow-2xs" 
-                        />
+                        <div 
+                          onClick={(e) => handleOpenChangeImageModal(p, e)}
+                          className="relative group cursor-pointer shrink-0"
+                          title="Toca para cambiar la imagen o el link de este producto"
+                        >
+                          <img 
+                            src={getProductImage(p)} 
+                            alt={p.nombre} 
+                            className="w-11 h-11 rounded-2xl object-cover border border-surface-container-highest shadow-2xs group-hover:scale-105 group-hover:ring-2 group-hover:ring-emerald-500 transition-all" 
+                          />
+                          <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <span className="material-symbols-outlined text-white text-xs">edit</span>
+                          </div>
+                        </div>
                         <div className="min-w-0 flex-grow">
                           <h3 className="font-extrabold text-on-surface text-sm leading-snug truncate">{p.nombre}</h3>
                           <span className="text-[11px] text-secondary font-medium">Por {p.tipoVenta === 'grs' ? '100g' : p.tipoVenta}</span>
@@ -1431,6 +1460,119 @@ export default function Inventory({ inventoryData, accountingData }) {
         </div>
 
       </div>
+
+      {/* MODAL CAMBIAR IMAGEN DE PRODUCTO */}
+      {modalChangeImageProduct && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-surface-container-low flex flex-col gap-4">
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-surface-container-low pb-3">
+              <div>
+                <h3 className="font-black text-on-surface text-lg flex items-center gap-2">
+                  <span>🖼️ Modificar Imagen / Enlace</span>
+                </h3>
+                <p className="text-xs text-secondary font-semibold mt-0.5">
+                  Producto: <strong className="text-on-surface">{modalChangeImageProduct.nombre}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setModalChangeImageProduct(null)}
+                className="w-8 h-8 rounded-full bg-surface-container-low hover:bg-surface-container-high text-secondary flex items-center justify-center font-bold text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Image Preview Box */}
+            <div className="flex flex-col items-center justify-center bg-surface-container-low p-4 rounded-2xl border border-surface-container-highest gap-2">
+              <img
+                src={imageUrlInput && imageUrlInput.trim() !== '' ? imageUrlInput : getProductImage(modalChangeImageProduct)}
+                alt="Vista previa"
+                className="w-24 h-24 rounded-2xl object-cover border border-surface-container-highest shadow-md"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = getProductImage({});
+                }}
+              />
+              <span className="text-[11px] text-secondary font-bold">Vista previa de la imagen</span>
+            </div>
+
+            {/* Form Fields */}
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-xs font-bold text-on-surface block mb-1">Enlace / Link URL de la Imagen Web:</label>
+                <input
+                  type="text"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-surface-container-low text-xs font-semibold text-on-surface"
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                  value={imageUrlInput}
+                  onChange={(e) => setImageUrlInput(e.target.value)}
+                />
+              </div>
+
+              {/* Upload File Button */}
+              <div>
+                <label className="w-full bg-surface-container-low hover:bg-surface-container-high text-on-surface border border-surface-container-highest px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95">
+                  <span className="material-symbols-outlined text-primary text-base">cloud_upload</span>
+                  <span>Subir imagen desde mi dispositivo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        if (file.size > 2 * 1024 * 1024) {
+                          alert('La imagen no debe superar los 2MB.');
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onloadend = () => setImageUrlInput(reader.result);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+
+              {/* Clear Image Button */}
+              {imageUrlInput && (
+                <button
+                  type="button"
+                  onClick={() => setImageUrlInput('')}
+                  className="text-xs text-error font-bold hover:underline self-center cursor-pointer mt-1"
+                >
+                  Quitar imagen personalizada (Usar icono por defecto)
+                </button>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 pt-2 border-t border-surface-container-low">
+              <button
+                type="button"
+                onClick={() => setModalChangeImageProduct(null)}
+                className="flex-1 bg-surface-container-low hover:bg-surface-container-high text-secondary font-bold text-xs py-2.5 rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const currentY = window.scrollY;
+                  await saveProduct({ ...modalChangeImageProduct, imagen: imageUrlInput });
+                  setModalChangeImageProduct(null);
+                  requestAnimationFrame(() => window.scrollTo(0, currentY));
+                }}
+                className="flex-1 bg-primary hover:bg-surface-tint text-white font-extrabold text-xs py-2.5 rounded-xl shadow-xs cursor-pointer active:scale-95 flex items-center justify-center gap-1"
+              >
+                <span className="material-symbols-outlined text-base">save</span>
+                <span>Guardar Imagen</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
