@@ -35,15 +35,18 @@ export default function Inventory({ inventoryData, accountingData }) {
   const [editingStockId, setEditingStockId] = useState(null);
   const [inlineStockInput, setInlineStockInput] = useState('');
 
-  // Quick Change Product Image Modal State
-  const [modalChangeImageProduct, setModalChangeImageProduct] = useState(null);
+  // Quick Inline Change Product Image State (Opens right at the clicked row/card)
+  const [editingImageProductId, setEditingImageProductId] = useState(null);
   const [imageUrlInput, setImageUrlInput] = useState('');
 
-  const handleOpenChangeImageModal = (product, e) => {
+  const handleToggleEditImageInline = (product, e) => {
     if (e) e.stopPropagation();
-    scrollPosRef.current = window.scrollY;
-    setModalChangeImageProduct(product);
-    setImageUrlInput(product.imagen || '');
+    if (editingImageProductId === product.id) {
+      setEditingImageProductId(null);
+    } else {
+      setEditingImageProductId(product.id);
+      setImageUrlInput(product.imagen || '');
+    }
   };
 
   // Stock form state (Add Stock / Purchase)
@@ -1125,9 +1128,9 @@ export default function Inventory({ inventoryData, accountingData }) {
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex items-center gap-3">
                         <div 
-                          onClick={(e) => handleOpenChangeImageModal(p, e)}
+                          onClick={(e) => handleToggleEditImageInline(p, e)}
                           className="relative group cursor-pointer shrink-0"
-                          title="Toca para cambiar la imagen o el link de este producto"
+                          title="Toca para modificar la foto de este producto directamente aquí"
                         >
                           <img 
                             src={getProductImage(p)} 
@@ -1152,6 +1155,95 @@ export default function Inventory({ inventoryData, accountingData }) {
                           </span>
                         </div>
                       </div>
+
+                      {/* INLINE IMAGE EDITOR (MOBILE VIEW) */}
+                      {editingImageProductId === p.id && (
+                        <div className="w-full bg-emerald-50/90 border-2 border-emerald-300 p-3.5 rounded-2xl flex flex-col gap-3 animate-fade-in my-1 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-xs text-emerald-950 flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-base text-emerald-700">photo_camera</span>
+                              <span>Modificar foto de {p.nombre}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingImageProductId(null)}
+                              className="text-xs text-secondary font-bold hover:text-on-surface"
+                            >
+                              ✕ Cerrar
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={imageUrlInput && imageUrlInput.trim() !== '' ? imageUrlInput : getProductImage(p)}
+                              alt="Vista previa"
+                              className="w-16 h-16 rounded-2xl object-cover border border-emerald-200 shrink-0 shadow-xs"
+                              onError={(e) => { e.target.onerror = null; e.target.src = getProductImage({}); }}
+                            />
+                            <div className="flex-grow flex flex-col gap-2">
+                              <input
+                                type="text"
+                                className="w-full px-3 py-2 rounded-xl border border-emerald-300 focus:border-emerald-600 outline-none bg-white text-xs font-bold text-on-surface"
+                                placeholder="Pegar link URL (https://...)"
+                                value={imageUrlInput}
+                                onChange={(e) => setImageUrlInput(e.target.value)}
+                              />
+                              <label className="bg-white hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300 px-3 py-1.5 rounded-xl font-extrabold text-[11px] transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                                <span className="material-symbols-outlined text-emerald-700 text-sm">cloud_upload</span>
+                                <span>Subir imagen local</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                      if (file.size > 2 * 1024 * 1024) { alert('La imagen no debe superar 2MB'); return; }
+                                      const reader = new FileReader();
+                                      reader.onloadend = () => setImageUrlInput(reader.result);
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-emerald-200">
+                            {imageUrlInput ? (
+                              <button
+                                type="button"
+                                onClick={() => setImageUrlInput('')}
+                                className="text-[11px] text-error font-bold hover:underline"
+                              >
+                                Quitar foto
+                              </button>
+                            ) : <div />}
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setEditingImageProductId(null)}
+                                className="px-3 py-1.5 bg-white text-secondary font-bold text-xs rounded-xl border border-surface-container-highest"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const currentY = window.scrollY;
+                                  await saveProduct({ ...p, imagen: imageUrlInput });
+                                  setEditingImageProductId(null);
+                                  requestAnimationFrame(() => window.scrollTo(0, currentY));
+                                }}
+                                className="px-4 py-1.5 bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs active:scale-95 flex items-center gap-1 cursor-pointer"
+                              >
+                                <span className="material-symbols-outlined text-sm">save</span>
+                                <span>Guardar Foto</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-1 shrink-0">
                         <button
@@ -1279,9 +1371,9 @@ export default function Inventory({ inventoryData, accountingData }) {
                       {/* Col 1: Producto (Col-span 3) */}
                       <div className="col-span-3 flex items-center gap-3">
                         <div 
-                          onClick={(e) => handleOpenChangeImageModal(p, e)}
+                          onClick={(e) => handleToggleEditImageInline(p, e)}
                           className="relative group cursor-pointer shrink-0"
-                          title="Toca para cambiar la imagen o el link de este producto"
+                          title="Toca para modificar la foto de este producto directamente aquí"
                         >
                           <img 
                             src={getProductImage(p)} 
@@ -1407,6 +1499,85 @@ export default function Inventory({ inventoryData, accountingData }) {
                         </button>
                       </div>
                     </div>
+
+                    {/* INLINE IMAGE EDITOR (DESKTOP VIEW - OPENS DIRECTLY BELOW THIS ROW) */}
+                    {editingImageProductId === p.id && (
+                      <div className="bg-emerald-50/90 border-t border-emerald-300 p-4 flex items-center justify-between gap-4 animate-fade-in shadow-inner">
+                        <div className="flex items-center gap-4 flex-grow">
+                          <img
+                            src={imageUrlInput && imageUrlInput.trim() !== '' ? imageUrlInput : getProductImage(p)}
+                            alt="Vista previa"
+                            className="w-14 h-14 rounded-2xl object-cover border border-emerald-200 shrink-0 shadow-xs"
+                            onError={(e) => { e.target.onerror = null; e.target.src = getProductImage({}); }}
+                          />
+                          <div className="flex-grow flex flex-col gap-1.5 max-w-lg">
+                            <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-base text-emerald-700">photo_camera</span>
+                              Modificar imagen de "{p.nombre}"
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                className="flex-grow px-3 py-2 rounded-xl border border-emerald-300 focus:border-emerald-600 outline-none bg-white text-xs font-bold text-on-surface"
+                                placeholder="Pegar link URL (https://...)"
+                                value={imageUrlInput}
+                                onChange={(e) => setImageUrlInput(e.target.value)}
+                              />
+                              <label className="bg-white hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300 px-3 py-2 rounded-xl font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0">
+                                <span className="material-symbols-outlined text-emerald-700 text-base">cloud_upload</span>
+                                <span>Subir imagen local</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                      if (file.size > 2 * 1024 * 1024) { alert('La imagen no debe superar 2MB'); return; }
+                                      const reader = new FileReader();
+                                      reader.onloadend = () => setImageUrlInput(reader.result);
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {imageUrlInput && (
+                            <button
+                              type="button"
+                              onClick={() => setImageUrlInput('')}
+                              className="text-xs text-error font-bold hover:underline px-2"
+                            >
+                              Quitar foto
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setEditingImageProductId(null)}
+                            className="px-3.5 py-2 bg-white text-secondary font-bold text-xs rounded-xl border border-surface-container-highest hover:bg-surface-container-low cursor-pointer"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const currentY = window.scrollY;
+                              await saveProduct({ ...p, imagen: imageUrlInput });
+                              setEditingImageProductId(null);
+                              requestAnimationFrame(() => window.scrollTo(0, currentY));
+                            }}
+                            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl shadow-xs active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-base">save</span>
+                            <span>Guardar Foto</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </React.Fragment>
               );
@@ -1460,119 +1631,6 @@ export default function Inventory({ inventoryData, accountingData }) {
         </div>
 
       </div>
-
-      {/* MODAL CAMBIAR IMAGEN DE PRODUCTO (CENTRADO EN LA PANTALLA VISIBLE ACTUAL) */}
-      {modalChangeImageProduct && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999] overflow-y-auto animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-surface-container-low flex flex-col gap-4 my-auto">
-            {/* Header */}
-            <div className="flex justify-between items-center border-b border-surface-container-low pb-3">
-              <div>
-                <h3 className="font-black text-on-surface text-lg flex items-center gap-2">
-                  <span>🖼️ Modificar Imagen / Enlace</span>
-                </h3>
-                <p className="text-xs text-secondary font-semibold mt-0.5">
-                  Producto: <strong className="text-on-surface">{modalChangeImageProduct.nombre}</strong>
-                </p>
-              </div>
-              <button
-                onClick={() => setModalChangeImageProduct(null)}
-                className="w-8 h-8 rounded-full bg-surface-container-low hover:bg-surface-container-high text-secondary flex items-center justify-center font-bold text-sm cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Image Preview Box */}
-            <div className="flex flex-col items-center justify-center bg-surface-container-low p-4 rounded-2xl border border-surface-container-highest gap-2">
-              <img
-                src={imageUrlInput && imageUrlInput.trim() !== '' ? imageUrlInput : getProductImage(modalChangeImageProduct)}
-                alt="Vista previa"
-                className="w-24 h-24 rounded-2xl object-cover border border-surface-container-highest shadow-md"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = getProductImage({});
-                }}
-              />
-              <span className="text-[11px] text-secondary font-bold">Vista previa de la imagen</span>
-            </div>
-
-            {/* Form Fields */}
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-bold text-on-surface block mb-1">Enlace / Link URL de la Imagen Web:</label>
-                <input
-                  type="text"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-surface-container-highest focus:border-primary outline-none bg-surface-container-low text-xs font-semibold text-on-surface"
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                  value={imageUrlInput}
-                  onChange={(e) => setImageUrlInput(e.target.value)}
-                />
-              </div>
-
-              {/* Upload File Button */}
-              <div>
-                <label className="w-full bg-surface-container-low hover:bg-surface-container-high text-on-surface border border-surface-container-highest px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95">
-                  <span className="material-symbols-outlined text-primary text-base">cloud_upload</span>
-                  <span>Subir imagen desde mi dispositivo</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        if (file.size > 2 * 1024 * 1024) {
-                          alert('La imagen no debe superar los 2MB.');
-                          return;
-                        }
-                        const reader = new FileReader();
-                        reader.onloadend = () => setImageUrlInput(reader.result);
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-
-              {/* Clear Image Button */}
-              {imageUrlInput && (
-                <button
-                  type="button"
-                  onClick={() => setImageUrlInput('')}
-                  className="text-xs text-error font-bold hover:underline self-center cursor-pointer mt-1"
-                >
-                  Quitar imagen personalizada (Usar icono por defecto)
-                </button>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 pt-2 border-t border-surface-container-low">
-              <button
-                type="button"
-                onClick={() => setModalChangeImageProduct(null)}
-                className="flex-1 bg-surface-container-low hover:bg-surface-container-high text-secondary font-bold text-xs py-2.5 rounded-xl cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const currentY = window.scrollY;
-                  await saveProduct({ ...modalChangeImageProduct, imagen: imageUrlInput });
-                  setModalChangeImageProduct(null);
-                  requestAnimationFrame(() => window.scrollTo(0, currentY));
-                }}
-                className="flex-1 bg-primary hover:bg-surface-tint text-white font-extrabold text-xs py-2.5 rounded-xl shadow-xs cursor-pointer active:scale-95 flex items-center justify-center gap-1"
-              >
-                <span className="material-symbols-outlined text-base">save</span>
-                <span>Guardar Imagen</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
