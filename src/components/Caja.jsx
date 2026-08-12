@@ -194,8 +194,46 @@ export default function Caja({ inventoryData, ordersData, salesData }) {
             <input required className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary" value={deliveryForm.direccion} onChange={e => setDeliveryForm({...deliveryForm, direccion: e.target.value})} placeholder="Calle y Número..." />
           </div>
           <div>
-            <label className="block text-xs font-bold text-secondary mb-1">Teléfono (WhatsApp)</label>
-            <input required type="tel" className="w-full bg-surface-container-low border border-surface-container-highest rounded-xl p-3 text-sm outline-none focus:border-primary" value={deliveryForm.telefono} onChange={e => setDeliveryForm({...deliveryForm, telefono: e.target.value})} placeholder="381..." />
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-bold text-secondary">Teléfono Celular (WhatsApp) *</label>
+              {deliveryForm.telefono && (
+                <a
+                  href={`https://wa.me/549${deliveryForm.telefono.replace(/\D/g, '').replace(/^(549|54|0)/, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-emerald-700 hover:text-emerald-900 font-extrabold flex items-center gap-1 hover:underline"
+                  title="Abrir chat en WhatsApp para comprobar si el número es válido"
+                >
+                  <span className="material-symbols-outlined text-xs">chat</span>
+                  <span>💬 Probar en WhatsApp</span>
+                </a>
+              )}
+            </div>
+            <input 
+              required 
+              type="tel" 
+              className={`w-full border rounded-xl p-3 text-sm outline-none font-bold transition-all ${
+                deliveryForm.telefono.replace(/\D/g, '').replace(/^(549|54|0)/, '').length >= 10 
+                  ? 'bg-emerald-50/60 border-emerald-400 text-emerald-950 focus:border-emerald-600' 
+                  : 'bg-surface-container-low border-surface-container-highest focus:border-primary text-on-surface'
+              }`}
+              value={deliveryForm.telefono} 
+              onChange={e => {
+                // Auto sanitize: remove leading 0 if typed
+                let val = e.target.value;
+                if (val.startsWith('0')) val = val.slice(1);
+                setDeliveryForm({...deliveryForm, telefono: val});
+              }} 
+              placeholder="Ej: 381 5123456 (Área + Número sin 0 ni 15)" 
+            />
+            <p className="text-[10px] text-secondary font-medium mt-1 flex items-center justify-between">
+              <span>Formato: Característica (área) + Celular. Sin '0' inicial y sin '15'.</span>
+              {deliveryForm.telefono && (
+                <span className={`font-extrabold ${deliveryForm.telefono.replace(/\D/g, '').replace(/^(549|54|0)/, '').length >= 10 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {deliveryForm.telefono.replace(/\D/g, '').replace(/^(549|54|0)/, '').length >= 10 ? '✓ Válido (10+ dígitos)' : `${deliveryForm.telefono.replace(/\D/g, '').replace(/^(549|54|0)/, '').length}/10 dígitos`}
+                </span>
+              )}
+            </p>
           </div>
           <div className="flex justify-end gap-3 mt-4">
             <button type="button" className="px-4 py-2.5 rounded-xl border text-secondary font-semibold hover:bg-surface-container-low text-sm" onClick={() => setShowDeliveryModal(false)}>Cancelar</button>
